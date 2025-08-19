@@ -4,6 +4,7 @@ Metadata extraction and handling for the Image Catalog TUI application.
 
 import logging
 import os
+import pprint
 from typing import Dict, List, Any, Optional
 
 import toml
@@ -66,6 +67,12 @@ def extract_exif_data_from_orig_images(folder_name: str, imagesets: List[str], c
             
             # Extract EXIF data from the original image
             exif_data = get_exif_data(orig_image_file)
+            
+            # Pretty print the EXIF data for debugging
+            pp = pprint.PrettyPrinter(indent=4)
+            formatted_exif = pp.pformat(exif_data)
+            logging.debug(f"EXIF data for {imageset}:\n{formatted_exif}")
+            
             if not exif_data:
                 logging.warning(f"No EXIF data found in {orig_image_file}")
                 continue
@@ -78,7 +85,12 @@ def extract_exif_data_from_orig_images(folder_name: str, imagesets: List[str], c
             fooocus_exif_field = sources_config.get("fooocus_exif_field", "PNG:Parameters")
                 
             # Check if this is a Fooocus image
-            if is_fooocus_image(exif_data, fooocus_scheme):
+            is_fooocus = is_fooocus_image(exif_data, fooocus_scheme)
+            is_midjourney = is_midjourney_image(exif_data, "PNG:Author", midjourney_author)
+            
+            logging.debug(f"Image detection results - Fooocus: {is_fooocus}, Midjourney: {is_midjourney}")
+            
+            if is_fooocus:
                 fooocus_data = parse_fooocus_metadata(exif_data, fooocus_exif_field)
                 if fooocus_data:
                     toml_data["source"] = "fooocus"
@@ -86,7 +98,7 @@ def extract_exif_data_from_orig_images(folder_name: str, imagesets: List[str], c
                     logging.info(f"Extracted Fooocus metadata for {imageset}")
                     
             # Check if this is a Midjourney image
-            elif is_midjourney_image(exif_data, "PNG:Author", midjourney_author):
+            elif is_midjourney:
                 midjourney_data = parse_midjourney_metadata(exif_data, midjourney_exif_field)
                 if midjourney_data:
                     toml_data["source"] = "midjourney"

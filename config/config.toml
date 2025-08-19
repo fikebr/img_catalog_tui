@@ -19,11 +19,11 @@ max_menu_items = 20
 [sources]
 # Midjourney identification
 midjourney_author = "aardvark_fike"
-midjourney_exif_field = "PNG:Description"
+midjourney_exif_field = "PNG:description"
 
 # Fooocus identification
-fooocus_scheme = "PNG:Fooocus_scheme"
-fooocus_exif_field = "PNG:Parameters"
+fooocus_scheme = "PNG:fooocus_scheme"
+fooocus_exif_field = "PNG:parameters"
 
 # File paths
 [paths]

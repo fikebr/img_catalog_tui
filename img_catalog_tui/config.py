@@ -70,6 +70,19 @@ class Config:
                 
             logging.info(f"Loading menu configuration from {menu_config_path}")
             self.menu_config = toml.load(menu_config_path)
+            
+            # Debug: Print loaded menu configuration
+            logging.debug("Loaded menu config: %s", self.menu_config)
+            
+            # Check if we have the expected sections
+            sections = self.get_menu_sections()
+            logging.debug("Found menu sections: %s", sections)
+            
+            # Check subsections for each section
+            for section in sections:
+                subsections = self.get_menu_subsections(section)
+                logging.debug("Section %s has subsections: %s", section, subsections)
+            
             return True
             
         except Exception as e:
@@ -118,16 +131,23 @@ class Config:
         Returns:
             Dictionary containing the menu item configuration
         """
+        # Check if the section exists
         if section not in self.menu_config:
+            logging.warning("Section %s not found in menu config", section)
             return {}
             
+        # If no subsection, return the section data
         if subsection is None:
-            return self.menu_config[section]
+            section_data = self.menu_config[section]
+            # Filter out nested dictionaries (subsections)
+            return {k: v for k, v in section_data.items() if not isinstance(v, dict)}
             
-        key = f"{section}.{subsection}"
-        if key in self.menu_config:
-            return self.menu_config[key]
+        # Get the subsection data
+        section_data = self.menu_config.get(section, {})
+        if subsection in section_data:
+            return section_data[subsection]
             
+        logging.warning("Subsection %s not found in section %s", subsection, section)
         return {}
     
     def get_menu_sections(self) -> List[str]:
@@ -137,7 +157,18 @@ class Config:
         Returns:
             List of section names
         """
-        return [key for key in self.menu_config.keys() if "." not in key]
+        # Debug the menu config
+        logging.debug("Menu config keys: %s", list(self.menu_config.keys()))
+        
+        # In TOML, nested tables are actually nested dictionaries
+        # So we need to get the top-level keys that are dictionaries
+        sections = []
+        for key, value in self.menu_config.items():
+            if isinstance(value, dict):
+                sections.append(key)
+                
+        logging.debug("Found sections: %s", sections)
+        return sections
     
     def get_menu_subsections(self, section: str) -> List[str]:
         """
@@ -149,6 +180,23 @@ class Config:
         Returns:
             List of subsection names
         """
-        prefix = f"{section}."
-        return [key.split(".")[1] for key in self.menu_config.keys() 
-                if key.startswith(prefix) and "." in key]
+        logging.debug("Getting subsections for section: %s", section)
+        
+        # Check if the section exists in the menu config
+        if section not in self.menu_config:
+            logging.warning("Section %s not found in menu config", section)
+            return []
+            
+        # In TOML, nested tables become nested dictionaries
+        # So we need to get the keys of the nested dictionary
+        section_data = self.menu_config.get(section, {})
+        logging.debug("Section data: %s", section_data)
+        
+        # Get all keys that are dictionaries (subsections)
+        subsections = []
+        for key, value in section_data.items():
+            if isinstance(value, dict):
+                subsections.append(key)
+                
+        logging.debug("Found subsections: %s", subsections)
+        return subsections

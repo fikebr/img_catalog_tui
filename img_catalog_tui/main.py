@@ -4,7 +4,7 @@ Main entry point for the Image Catalog TUI application.
 
 import logging
 import sys
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Optional
 
 from img_catalog_tui.cli import parse_args
 from img_catalog_tui.config import Config
@@ -12,16 +12,19 @@ from img_catalog_tui.core.commands import handle_command
 from img_catalog_tui.logger import setup_logging
 
 
-def start_menu() -> Tuple[str, Dict[str, Any]]:
+def start_menu(config: Config, input_folder: Optional[str] = None) -> Tuple[str, Dict[str, Any]]:
     """
-    Placeholder for the menu system.
+    Start the menu system.
     
+    Args:
+        config: Application configuration
+        input_folder: Path to input folder (if provided via command line)
+        
     Returns:
         Tuple containing (command, arguments)
     """
-    # This would be replaced by the actual TUI implementation
-    logging.info("Menu system not yet implemented")
-    return "x", {}
+    from img_catalog_tui.ui.tui import run_tui
+    return run_tui(config, input_folder)
 
 
 def main():
@@ -32,6 +35,7 @@ def main():
     """
     # Set up logging
     logger = setup_logging()
+    logging.getLogger().setLevel(logging.DEBUG)  # Set to DEBUG level for troubleshooting
     
     try:
         logging.info("Starting Image Catalog TUI")
@@ -63,7 +67,7 @@ def main():
         
         # Main application loop
         while True:
-            command, c_args = start_menu()
+            command, c_args = start_menu(config, args.input_folder)
             
             if command == "x":
                 logging.info("Exiting application")

@@ -4,9 +4,15 @@ EXIF data extraction utilities for the Image Catalog TUI application.
 
 import json
 import logging
+import pprint
 from typing import Dict, Optional, Tuple, Any
 
 try:
+    # Suppress PIL debug logging
+    import logging as pil_logging
+    pil_logger = pil_logging.getLogger('PIL')
+    pil_logger.setLevel(pil_logging.INFO)  # Set to INFO to suppress DEBUG messages
+    
     from PIL import Image, ExifTags
     from PIL.PngImagePlugin import PngInfo
 except ImportError:
@@ -26,6 +32,7 @@ def get_exif_data(image_path: str) -> Dict[str, Any]:
     exif_data = {}
     
     try:
+        logging.debug(f"Extracting EXIF data from {image_path}")
         with Image.open(image_path) as img:
             # Get standard EXIF data
             if hasattr(img, '_getexif') and img._getexif():
@@ -35,9 +42,14 @@ def get_exif_data(image_path: str) -> Dict[str, Any]:
             
             # Get PNG text data (used by Midjourney and Fooocus)
             if img.format == 'PNG' and hasattr(img, 'text'):
+                logging.debug(f"Found PNG text data: {img.text}")
                 for key, value in img.text.items():
                     exif_data[f"PNG:{key}"] = value
                     
+        # Pretty print the EXIF data for better readability in logs
+        pp = pprint.PrettyPrinter(indent=4)
+        formatted_exif = pp.pformat(exif_data)
+        logging.debug(f"Extracted EXIF data:\n{formatted_exif}")
         return exif_data
         
     except Exception as e:
@@ -56,7 +68,33 @@ def is_fooocus_image(exif_data: Dict[str, Any], scheme_field: str = "PNG:Fooocus
     Returns:
         True if the image is a Fooocus image, False otherwise
     """
-    return scheme_field in exif_data and exif_data[scheme_field] == "fooocus"
+    # Look for Fooocus-specific fields
+    logging.debug(f"Checking if image is from Fooocus with field: {scheme_field}")
+    
+    # Primary check: Fooocus_scheme field
+    if scheme_field in exif_data:
+        logging.debug(f"Fooocus scheme field value: {exif_data[scheme_field]}")
+        if exif_data[scheme_field] == "fooocus":
+            logging.debug("Identified as Fooocus image by scheme field")
+            return True
+        
+    # Secondary check: Look for Parameters field with Fooocus-specific content
+    if "PNG:Parameters" in exif_data:
+        params = exif_data["PNG:Parameters"]
+        logging.debug(f"Found Parameters field: {params[:100]}...")  # Log first 100 chars
+        
+        # Check if it contains Fooocus-specific keys
+        fooocus_indicators = ["prompt", "negative_prompt", "sampler", "seed", "cfg_scale"]
+        try:
+            params_dict = json.loads(params)
+            if any(key in params_dict for key in fooocus_indicators):
+                logging.debug("Identified as Fooocus image by Parameters content")
+                return True
+        except:
+            pass
+            
+    logging.debug("Not identified as a Fooocus image")
+    return False
 
 
 def is_midjourney_image(exif_data: Dict[str, Any], author_field: str = "PNG:Author", author_value: str = "aardvark_fike") -> bool:
@@ -71,7 +109,47 @@ def is_midjourney_image(exif_data: Dict[str, Any], author_field: str = "PNG:Auth
     Returns:
         True if the image is a Midjourney image, False otherwise
     """
-    return author_field in exif_data and exif_data[author_field] == author_value
+    logging.debug(f"Checking if image is from Midjourney with field: {author_field}")
+    
+    # Debug: Show all keys that might be related to Midjourney
+    midjourney_related_keys = [k for k in exif_data.keys() 
+                              if any(term in k.lower() for term in ['author', 'description', 'comment', 'title'])]
+    if midjourney_related_keys:
+        logging.debug(f"Found potential Midjourney-related keys: {midjourney_related_keys}")
+        for key in midjourney_related_keys:
+            value = exif_data[key]
+            if isinstance(value, str) and len(value) > 100:
+                logging.debug(f"{key}: {value[:100]}...")  # Log first 100 chars
+            else:
+                logging.debug(f"{key}: {value}")
+    
+    # Primary check: Author field
+    if author_field in exif_data:
+        logging.debug(f"Author field value: {exif_data[author_field]}")
+        if exif_data[author_field] == author_value:
+            logging.debug("Identified as Midjourney image by author field")
+            return True
+        
+    # Secondary check: Look for Description field with "Job ID:" which is Midjourney-specific
+    if "PNG:Description" in exif_data:
+        desc = exif_data["PNG:Description"]
+        logging.debug(f"Found Description field: {desc[:100]}...")  # Log first 100 chars
+        
+        if "Job ID:" in desc:
+            logging.debug("Identified as Midjourney image by Job ID in Description")
+            return True
+            
+    # Tertiary check: Look for common Midjourney parameters
+    midjourney_indicators = ["--ar", "--v", "--stylize", "--quality", "--chaos"]
+    for field in ["PNG:Description", "PNG:Comment", "PNG:Title"]:
+        if field in exif_data:
+            value = exif_data[field]
+            if any(indicator in value for indicator in midjourney_indicators):
+                logging.debug(f"Identified as Midjourney image by indicators in {field}")
+                return True
+                
+    logging.debug("Not identified as a Midjourney image")
+    return False
 
 
 def parse_fooocus_metadata(exif_data: Dict[str, Any], parameters_field: str = "PNG:Parameters") -> Dict[str, Any]:
@@ -85,13 +163,49 @@ def parse_fooocus_metadata(exif_data: Dict[str, Any], parameters_field: str = "P
     Returns:
         Dictionary containing parsed Fooocus metadata
     """
+    logging.debug(f"Attempting to parse Fooocus metadata from field: {parameters_field}")
+    
     if parameters_field not in exif_data:
-        return {}
+        logging.warning(f"Parameters field {parameters_field} not found in EXIF data")
         
+        # Try to find any field that might contain parameters
+        for key in exif_data:
+            if "parameter" in key.lower() or "param" in key.lower():
+                logging.debug(f"Found potential parameters field: {key}")
+                parameters_field = key
+                break
+        else:
+            return {}
+    
     try:
         # Parse JSON data from parameters field
         parameters = exif_data[parameters_field]
-        return json.loads(parameters)
+        logging.debug(f"Raw parameters: {parameters[:100]}...")  # Log first 100 chars
+        
+        # Try to parse as JSON
+        parsed_data = json.loads(parameters)
+        logging.debug(f"Successfully parsed Fooocus metadata: {list(parsed_data.keys())}")
+        return parsed_data
+    except json.JSONDecodeError as e:
+        logging.error(f"JSON parsing error for Fooocus metadata: {e}")
+        
+        # Try to extract key-value pairs from the string
+        try:
+            # Simple key-value extraction
+            result = {}
+            lines = parameters.split(',')
+            for line in lines:
+                if ':' in line:
+                    key, value = line.split(':', 1)
+                    result[key.strip().strip('"')] = value.strip().strip('"')
+            
+            if result:
+                logging.debug(f"Extracted metadata using fallback method: {list(result.keys())}")
+                return result
+        except Exception:
+            pass
+            
+        return {}
     except Exception as e:
         logging.error(f"Error parsing Fooocus metadata: {e}", exc_info=True)
         return {}
@@ -108,18 +222,35 @@ def parse_midjourney_metadata(exif_data: Dict[str, Any], description_field: str 
     Returns:
         Dictionary containing parsed Midjourney metadata
     """
+    logging.debug(f"Attempting to parse Midjourney metadata from field: {description_field}")
+    
     if description_field not in exif_data:
-        return {}
+        logging.warning(f"Description field {description_field} not found in EXIF data")
         
+        # Try to find any field that might contain a description
+        for key in exif_data:
+            if "description" in key.lower() or "comment" in key.lower() or "title" in key.lower():
+                logging.debug(f"Found potential description field: {key}")
+                description_field = key
+                break
+        else:
+            return {}
+    
     try:
         description = exif_data[description_field]
-        prompt, job_id = parse_midjourney_description(description)
+        logging.debug(f"Raw description: {description[:100]}...")  # Log first 100 chars
         
-        return {
+        prompt, job_id = parse_midjourney_description(description)
+        logging.debug(f"Parsed prompt: {prompt[:50]}..., job_id: {job_id}")
+        
+        result = {
             "description": description,
             "prompt": prompt,
             "jobid": job_id
         }
+        
+        return result
+
     except Exception as e:
         logging.error(f"Error parsing Midjourney metadata: {e}", exc_info=True)
         return {}

@@ -6,7 +6,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 
-LOG_FORMAT = "%(asctime)s %(levelname)s %(lineno)d - %(message)s"  # %(filename)s
+LOG_FORMAT = "%(asctime)s %(levelname)s %(filename)s %(lineno)d - %(message)s"  #
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 LOG_FILE = "logs/app.log"
 LOG_FILE_MAX_SIZE = 10 * 1024 * 1024  # 10 MB
@@ -19,6 +19,7 @@ def setup_logging():
     Logs are written to a rotating file with a maximum size of 10 MB.
     The log format includes the date, time, log level, line number, and message.
     """
+    # Configure root logger
     logger = logging.getLogger()
     logger.setLevel(logging.INFO)
 
@@ -42,6 +43,9 @@ def setup_logging():
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(logging.Formatter(LOG_FORMAT, DATE_FORMAT))
     logger.addHandler(console_handler)
+    
+    # Suppress logs from specific libraries
+    logging.getLogger('PIL').setLevel(logging.WARNING)  # Suppress PIL debug and info logs
     
     logging.info("Logging initialized")
     
