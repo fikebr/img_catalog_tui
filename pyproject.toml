@@ -1,0 +1,42 @@
+[project]
+name = "img-catalog-tui"
+version = "0.1.0"
+description = "A TUI application for organizing and managing image collections"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [
+    { name = "brad.fike" }
+]
+dependencies = [
+    "toml==0.10.2",
+    "pillow>=11.3.0",
+    "rich>=14.1.0",
+    "textual>=5.3.0",
+    "argparse>=1.4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["img_catalog_tui"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "img_catalog_tui",
+    "README.md",
+    "pyproject.toml",
+]
+
+[project.scripts]
+img-catalog-tui = "img_catalog_tui.main:main"

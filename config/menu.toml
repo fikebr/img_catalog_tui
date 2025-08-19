@@ -1,0 +1,27 @@
+# Menu Configuration
+
+[folder]
+description = "Folder operations"
+
+[folder.scan]
+description = "Scan a new folder of images"
+command = "folder_scan"
+questions = ["folder_name|What folder to scan?"]
+
+[folder.index]
+description = "Index a folder that has already been scanned and create a index.json and a index.html"
+command = "folder_index"
+questions = ["folder_name|What folder to scan?"]
+
+[imageset]
+description = "Image set operations"
+
+[imageset.html]
+description = "Create an HTML report of the imageset"
+command = "imageset_html"
+questions = ["folder_name|What folder to scan?", "imageset|What imageset?"]
+
+[imageset.interview]
+description = "Perform an interview for the imageset"
+command = "imageset_interview"
+questions = ["folder_name|What folder to scan?", "imageset|What imageset?", "interview_template|What template to use for the interview?"]
