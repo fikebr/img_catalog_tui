@@ -149,14 +149,10 @@ def run_tui(config: Config, input_folder: Optional[str] = None) -> Tuple[str, Di
     """
     tui = TUI(config)
     
-    # Display welcome message
-    tui.display_welcome()
+    # Clear the screen for a clean start
+    tui.clear()
     
-    # Prompt for input folder if not provided
-    # if not input_folder:
-    #     input_folder = tui.prompt_for_folder()
-        
-    # Start menu system
+    # Start menu system directly
     command, args = start_menu(config)
     
     # Add input folder to args if not already present

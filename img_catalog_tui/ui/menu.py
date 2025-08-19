@@ -68,7 +68,7 @@ class Menu:
         options['h'] = "Help"
         
         # Display menu
-        self._display_menu("Main Menu", options)
+        self._display_menu("Main Menu", options, option_keys)
         
         # Get user input
         choice = self.input_handler.get_choice(list(options.keys()))
@@ -119,7 +119,7 @@ class Menu:
         options['h'] = "Help"
         
         # Display menu
-        self._display_menu(f"{self.current_section.capitalize()} Menu", options)
+        self._display_menu(f"{self.current_section.capitalize()} Menu", options, option_keys)
         
         # Get user input
         choice = self.input_handler.get_choice(list(options.keys()))
@@ -162,13 +162,14 @@ class Menu:
                 
         return command, args
         
-    def _display_menu(self, title: str, options: Dict[str, str]) -> None:
+    def _display_menu(self, title: str, options: Dict[str, str], option_keys: Dict[str, str] = None) -> None:
         """
         Display a menu with the given title and options.
         
         Args:
             title: Menu title
             options: Dictionary mapping option keys to descriptions
+            option_keys: Dictionary mapping keys to section/subsection names
         """
         self.console.clear()
         
@@ -177,12 +178,45 @@ class Menu:
         table.add_column("Key", style="bold cyan")
         table.add_column("Description")
         
-        # Add options to the table
+        # Separate regular options from hardcoded options
+        regular_options = {}
+        hardcoded_options = {}
+        
         for key, description in options.items():
-            table.add_row(key, description)
-            
-        # Display the table in a panel
-        panel = Panel(table, title="Image Catalog TUI", border_style="blue")
+            if key in ['x', 'u', 'h']:
+                hardcoded_options[key] = description
+            else:
+                regular_options[key] = description
+        
+        # Add regular options to the table with menu name in all caps
+        for key, description in regular_options.items():
+            # If we have option_keys, format with menu name
+            if option_keys and key in option_keys:
+                menu_name = option_keys[key].upper()
+                formatted_description = f"[bold]{menu_name}[/bold]: {description}"
+                table.add_row(key, formatted_description)
+            else:
+                # Fallback if no option_keys provided
+                table.add_row(key, description)
+        
+        # Create status bar for hardcoded options
+        status_items = []
+        if 'x' in hardcoded_options:
+            status_items.append("[bold red]x[/bold red]: Exit")
+        if 'u' in hardcoded_options:
+            status_items.append("[bold yellow]u[/bold yellow]: Up")
+        if 'h' in hardcoded_options:
+            status_items.append("[bold green]h[/bold green]: Help")
+        
+        status_bar = " | ".join(status_items)
+        
+        # Display the table in a panel with status bar
+        panel = Panel(
+            table, 
+            title="Image Catalog TUI", 
+            border_style="blue",
+            subtitle=status_bar
+        )
         self.console.print(panel)
         
     def _display_help(self) -> None:
