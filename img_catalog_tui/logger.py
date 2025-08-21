@@ -21,7 +21,8 @@ def setup_logging():
     """
     # Configure root logger
     logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
+    # Set root logger to DEBUG to capture all levels
+    logger.setLevel(logging.DEBUG)
 
     # Create the log directory if it doesn't exist
     log_dir = os.path.dirname(LOG_FILE)
@@ -32,15 +33,17 @@ def setup_logging():
             print(f"Error creating log directory: {e}")
             return
 
-    # Set up the rotating file handler
+    # Set up the rotating file handler for DEBUG and above
     file_handler = RotatingFileHandler(
         LOG_FILE, maxBytes=LOG_FILE_MAX_SIZE, backupCount=5
     )
+    file_handler.setLevel(logging.DEBUG)  # File gets DEBUG and above
     file_handler.setFormatter(logging.Formatter(LOG_FORMAT, DATE_FORMAT))
     logger.addHandler(file_handler)
 
-    # Also log to the console
+    # Set up console handler for INFO and above
     console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)  # Console gets INFO and above
     console_handler.setFormatter(logging.Formatter(LOG_FORMAT, DATE_FORMAT))
     logger.addHandler(console_handler)
     

@@ -26,6 +26,7 @@ class Config:
         self.config_file = config_file
         self.config_data: Dict[str, Any] = {}
         self.menu_config: Dict[str, Any] = {}
+        self.config_dir = os.path.dirname(os.path.abspath(config_file))
         
     def load(self) -> bool:
         """

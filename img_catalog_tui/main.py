@@ -81,7 +81,7 @@ def main():
         logging.error(f"Error during application execution: {e}", exc_info=True)
         return 1
     
-    logging.info("Application terminated normally")
+    logging.debug("Application terminated normally")
     return 0
 
 

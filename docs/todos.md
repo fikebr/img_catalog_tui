@@ -42,14 +42,30 @@
 **Section completed: 2024-06-19**
 
 ## 5. Folder Operations
+
+### 5.1. Folder Index
+- [x] Create folder indexing functionality:
+  - [x] Implement folder_index function to scan folders and build index
+  - [x] Create JSON index generation (index.json)
+  - [x] Create a jinja2 based template (config\templates\index.html)
+  - [x] Implement HTML index generation (index.html) with:
+    - [x] Folder name and timestamp header
+    - [x] Card layout for each imageset
+    - [x] Display of original images
+    - [x] Clickable images that open in new tabs
+    - [x] "Copy imageset" button functionality
+    - [x] "Copy folder" button functionality
+    - [x] "Open" button for imageset reports
+    - [x] JavaScript to hide cards with missing images
+
+**Section 5.1 completed: 2024-06-20**
+
+### 5.2. Folder Operations
 - [ ] Implement get_imagesets_in_folder function
 - [ ] Create delete_abandoned_folders function
 - [ ] Implement tag_orig_file function
 - [ ] Create extract_exif_data_from_orig_images function
 - [ ] Implement get_imageset_from_filename function
-- [ ] Create folder indexing functionality
-- [ ] Implement JSON index generation
-- [ ] Create HTML index generation
 
 **Section completed: ______________ (date)**
 

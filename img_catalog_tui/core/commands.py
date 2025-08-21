@@ -7,6 +7,7 @@ from typing import Dict, Any, Callable, Optional
 
 from img_catalog_tui.config import Config
 from img_catalog_tui.core.folder import folder_scan
+from img_catalog_tui.core.folder_index import folder_index
 from img_catalog_tui.core.imageset import generate_html_report, process_interview
 
 
@@ -97,9 +98,7 @@ def handle_folder_index(args: Dict[str, Any], config: Config) -> bool:
     Returns:
         True if successful, False otherwise
     """
-    # TODO: Implement folder index generation
-    logging.info("Folder index command not yet implemented")
-    return False
+    return folder_index(args, config)
 
 
 @register_command("imageset_html")

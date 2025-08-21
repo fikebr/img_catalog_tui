@@ -43,7 +43,7 @@ A terminal user interface (TUI) application that presents users with a menu of a
 ### Menu Structure
 1. **Folder Operations**
    - Scan: Analyze folder structure and organize images
-   - Index: Generate index of images and create index.json and index.html
+   - Index: Generate index of images and create index.json and index.html with interactive gallery view
 
 2. **Image Set Operations**
    - HTML: Create an HTML report of the imageset
@@ -91,6 +91,19 @@ Each menu option includes:
 - Tag original files in each image set
 - Extract EXIF metadata from original images
 - Generate/update TOML configuration files
+
+#### Folder Indexing
+- Scan the specified folder and build an index of imagesets
+- Generate index.json with metadata about each imageset
+- Create an interactive index.html gallery with the following features:
+  - Header with folder name and timestamp
+  - Individual cards for each imageset
+  - Display of original image in each card
+  - Clickable images that open in new tabs
+  - "Copy imageset" button to copy imageset name to clipboard
+  - "Copy folder" button to copy full path to clipboard
+  - "Open" button to view imageset report in new tab
+  - JavaScript to hide cards for missing images
 
 #### Metadata Handling
 - Support for different image sources:

@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Catalog - {{ folder_name }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        header {
+            background-color: #333;
+            color: white;
+            padding: 10px 20px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .card-header {
+            background-color: #444;
+            color: white;
+            padding: 10px;
+            font-weight: bold;
+        }
+        .card-body {
+            padding: 15px;
+            text-align: center;
+        }
+        .card-image {
+            max-width: 100%;
+            height: auto;
+            cursor: pointer;
+        }
+        .card-buttons {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+        }
+        .btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Image Catalog: {{ folder_name }}</h1>
+            <p>Generated on: {{ timestamp }}</p>
+        </header>
+        
+        <div class="grid" id="imagesetGrid">
+            {% for imageset_name, imageset_data in index.imagesets.items() %}
+            <div class="card" id="card-{{ imageset_name }}" data-imageset="{{ imageset_name }}" data-folder="{{ folder_name }}/{{ imageset_name }}">
+                <div class="card-header">{{ imageset_name }}</div>
+                <div class="card-body">
+                    {% if imageset_data.orig %}
+                    <img src="{{ imageset_name }}/{{ imageset_data.orig }}" alt="{{ imageset_name }}" class="card-image" onclick="openImage('{{ imageset_name }}', '{{ imageset_data.orig }}')">
+                    {% else %}
+                    <p>No original image found</p>
+                    {% endif %}
+                    <div class="card-buttons">
+                        <button class="btn" 
+                                data-imageset="{{ imageset_name }}"
+                                onclick="copyToClipboard(this.dataset.imageset)">Copy Imageset</button>
+                        <button class="btn copy-folder"
+                                data-folder="{{ folder_name }}"
+                                data-imageset="{{ imageset_name }}">Copy Folder</button>
+                        <button class="btn open-report"
+                                data-folder="{{ folder_name }}"
+                                data-imageset="{{ imageset_name }}">Open</button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <script>
+        // Function to open image in new tab
+        function openImage(imageset_name, imagePath) {
+            // Get the base URL (location of the current HTML file)
+            const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+
+            // Construct the full path
+            const fullPath = `${baseUrl}${imageset_name}/${imagePath}`;
+
+            // Open the image in a new tab
+            window.open(fullPath, '_blank');
+        }
+        
+        // Function to copy text to clipboard
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Copied to clipboard: ' + text);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert('Copy failed. This only works over HTTPS/localhost and on user gesture.');
+            });
+        }
+        
+        // Helper function to join Windows paths properly
+        function joinWinPath(dir, name) {
+            let p = dir.replace(/\//g, '\\');
+            if (!p.endsWith('\\')) p += '\\';
+            return p + name;
+        }
+        
+        // Function to copy a Windows path
+        function copyWindowsPath(folderPath, imagesetName) {
+            const path = joinWinPath(folderPath, imagesetName);
+            navigator.clipboard.writeText(path).then(() => {
+                alert('Copied to clipboard: ' + path);
+            }).catch(err => {
+                console.error('Failed to copy: ', err);
+                alert('Copy failed. This only works over HTTPS/localhost and on user gesture.');
+            });
+        }
+        
+        // Function to open imageset report
+        function openReport(folderPath, imagesetName) {
+            const reportPath = `${folderPath}/${imagesetName}/${imagesetName}.html`;
+            // Try to open the report, if it exists
+            fetch(reportPath)
+                .then(response => {
+                    if (response.ok) {
+                        window.open(reportPath, '_blank');
+                    } else {
+                        alert('Report not found for ' + imagesetName);
+                    }
+                })
+                .catch(() => {
+                    alert('Error opening report for ' + imagesetName);
+                });
+        }
+        
+        // Hide cards with missing images and set up event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Handle missing images
+            const cards = document.querySelectorAll('.card');
+            cards.forEach(card => {
+                const img = card.querySelector('img');
+                if (img) {
+                    img.onerror = function() {
+                        card.classList.add('hidden');
+                    };
+                }
+            });
+            
+            // Attach event listeners for Copy Folder buttons
+            document.querySelectorAll('.copy-folder').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    copyWindowsPath(btn.dataset.folder, btn.dataset.imageset);
+                });
+            });
+            
+            // Attach event listeners for Open Report buttons
+            document.querySelectorAll('.open-report').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    openReport(btn.dataset.folder, btn.dataset.imageset);
+                });
+            });
+        });
+    </script>
+</body>
+</html>
