@@ -106,7 +106,7 @@ def generate_html_index(folder_name: str, index: Dict[str, Any], config: Config)
     """
     try:
         # Get template path
-        template_path = os.path.join(config.config_dir, "templates", "index.html")
+        template_path = os.path.join(config.config_dir, "templates", "index_review.html")
         logging.info(f"Template path: {template_path}")
         
         # Check if template exists

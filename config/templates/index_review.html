@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Image Catalog Review - {{ folder_name }}</title>
+  <style>
+    :root{
+      --bg:#0f172a;
+      --surface:#111827;
+      --muted:#1f2937;
+      --border:#334155;
+      --text:#e5e7eb;
+      --accent:#60a5fa;
+      --accent-2:#22d3ee;
+      --good:#34d399;
+      --bad:#f87171;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:linear-gradient(180deg,var(--bg),#020617);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,"Apple Color Emoji","Segoe UI Emoji"}
+    .shell{min-height:100%;display:grid;grid-template-rows:auto 1fr auto}
+    header,footer{border-block:1px solid var(--border);background:rgba(255,255,255,0.02);backdrop-filter:blur(6px)}
+    header{position:sticky;top:0;z-index:50}
+    .container{max-width:1400px;margin-inline:auto;padding:12px 16px}
+    h1{margin:0;font-size:clamp(18px,2.5vw,28px);letter-spacing:0.3px}
+
+    main{width:100%;margin:16px auto;padding:0 16px}
+
+    nav{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:12px;position:fixed;top:72px;left:16px;width:200px;height:calc(100% - 100px);overflow:auto}
+
+    .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(700px,1fr));gap:32px;width:100%}
+
+    .card{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:rgba(255,255,255,0.02);display:flex;flex-direction:column;min-height:700px}
+    .card[hidden]{display:none!important}
+    .card-header{padding:16px 20px;background:linear-gradient(90deg,rgba(96,165,250,0.2),rgba(34,211,238,0.2));border-bottom:1px solid var(--border);font-weight:600;display:flex;align-items:center;gap:8px;font-size:18px}
+    .card-content{flex:1;padding:24px;text-align:center;display:flex;justify-content:center;align-items:center}
+    .card-footer{padding:20px;border-top:1px solid var(--border);display:flex;gap:16px;justify-content:space-between}
+    .btn{appearance:none;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text);padding:12px 16px;border-radius:12px;cursor:pointer;font-weight:600;font-size:16px}
+    .btn.primary{border-color:transparent;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:#0b1220}
+
+    .carts{position:fixed;top:72px;right:16px;width:280px;display:flex;flex-direction:column;gap:16px;}
+    .cart{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:12px;min-height:200px;max-height:40vh;overflow:auto}
+    .cart-header{display:flex;align-items:center;gap:8px;justify-content:space-between}
+    .cart-items{display:grid;gap:8px}
+    .cart-item{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;border:1px solid var(--border);border-radius:10px;padding:8px;background:rgba(255,255,255,0.03)}
+    .thumb{width:44px;height:44px;border-radius:8px;border:1px solid var(--border);display:grid;place-items:center;font-weight:800}
+
+    .toast{position:fixed;inset:auto 0 18px;display:grid;place-items:center;pointer-events:none}
+    .toast > div{background:rgba(17,24,39,0.9);border:1px solid var(--border);padding:10px 14px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+
+    .card-image{max-width:100%;height:auto;max-height:560px;cursor:pointer;border-radius:8px;border:1px solid var(--border);object-fit:contain}
+
+    /* Give body section margin so content not hidden behind nav/carts */
+    #body{margin-left:240px;margin-right:320px;max-width:calc(100% - 560px)}
+    
+    /* Responsive adjustments */
+    @media (max-width: 2000px) {
+      .cards{grid-template-columns:repeat(auto-fit,minmax(600px,1fr))}
+    }
+    @media (max-width: 1600px) {
+      .cards{grid-template-columns:repeat(auto-fit,minmax(500px,1fr))}
+    }
+    @media (max-width: 1200px) {
+      .cards{grid-template-columns:repeat(auto-fit,minmax(450px,1fr))}
+      #body{margin-left:220px;margin-right:300px}
+      nav{width:180px}
+      .carts{width:260px}
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="container" style="display:flex;align-items:center;justify-content:space-between">
+        <h1>Image Catalog: {{ folder_name }}</h1>
+        <div>Generated on: {{ timestamp }}</div>
+      </div>
+    </header>
+
+    <main>
+      <nav>
+        <h3>Navigation</h3>
+        <div>
+          <p>Total: <span id="totalCount">0</span></p>
+          <p>Visible: <span id="visibleCount">0</span></p>
+        </div>
+      </nav>
+      <section id="body">
+        <div class="cards" id="cards" style="width:100%">
+          {% for imageset_name, imageset_data in index.imagesets.items() %}
+          <article class="card" data-imagesetname="{{ imageset_name }}" data-folder="{{ folder_name }}/{{ imageset_name }}">
+            <div class="card-header">
+              <span class="title">{{ imageset_name }}</span>
+            </div>
+            <div class="card-content">
+              {% if imageset_data.orig %}
+              <img src="{{ imageset_name }}/{{ imageset_data.orig }}" alt="{{ imageset_name }}" class="card-image" onclick="openImage('{{ imageset_name }}', '{{ imageset_data.orig }}')">
+              {% else %}
+              <p>No original image found</p>
+              {% endif %}
+            </div>
+            <div class="card-footer">
+              <div>
+                <button class="btn keep-btn">Keep</button>
+                <button class="btn archive-btn">Archive</button>
+              </div>
+              <button class="btn copy-path" 
+                data-folder="{{ folder_name }}" 
+                data-imageset="{{ imageset_name }}"
+                onclick="copyWindowsPath(this)">Copy Path</button>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+
+      <!-- Carts stacked -->
+      <div class="carts">
+        <aside class="cart" id="keepCart">
+          <div class="cart-header">
+            <strong>Keep</strong>
+            <div>
+              <button id="copyKeepBtn" class="btn">Copy List</button>
+              <button id="clearKeepBtn" class="btn">Clear</button>
+            </div>
+          </div>
+          <div class="cart-items" id="keepItems"></div>
+        </aside>
+
+        <aside class="cart" id="archiveCart">
+          <div class="cart-header">
+            <strong>Archive</strong>
+            <div>
+              <button id="copyArchiveBtn" class="btn">Copy List</button>
+              <button id="clearArchiveBtn" class="btn">Clear</button>
+            </div>
+          </div>
+          <div class="cart-items" id="archiveItems"></div>
+        </aside>
+      </div>
+    </main>
+
+    <footer><div class="container"><small>© <span id="year"></span></small></div></footer>
+  </div>
+
+  <div class="toast" id="toast" hidden><div id="toastMsg">Copied!</div></div>
+
+  <script>
+    const $ = (s,r=document)=>r.querySelector(s);
+    const $$ = (s,r=document)=>r.querySelectorAll(s);
+    const cardsEl = $('#cards');
+    const toastEl = $('#toast');
+    const toastMsgEl = $('#toastMsg');
+
+    const state = {keep:[], archive:[]};
+
+    function showToast(msg){toastMsgEl.textContent=msg;toastEl.hidden=false;clearTimeout(showToast.t);showToast.t=setTimeout(()=>toastEl.hidden=true,1200);}
+    function getInitials(str){return str.slice(0,2).toUpperCase();}
+
+    function buildCartItem(name,title){
+      const item=document.createElement('div');
+      item.className='cart-item';
+      item.dataset.imagesetname=name;
+      item.innerHTML=`<div class="thumb">${getInitials(title||name)}</div><div>${title||name}</div>`;
+      return item;
+    }
+
+    function addToCart(card,cart){
+      const name=card.dataset.imagesetname;const title=card.querySelector('.title')?.textContent.trim();
+      if(state[cart].includes(name))return;
+      state[cart].push(name);
+      card.hidden=true;
+      const item=buildCartItem(name,title);
+      $("#"+cart+"Items").appendChild(item);
+      updateCounts();
+    }
+
+    function copyList(cart){
+      const text=state[cart].join('\n');
+      if(!text){showToast('Empty '+cart);return;}
+      navigator.clipboard.writeText(text).then(()=>showToast('Copied')).catch(()=>showToast('Fail'));
+    }
+    
+    function clearCart(cart){
+      state[cart].forEach(name=>{const orig=cardsEl.querySelector(`.card[data-imagesetname="${CSS.escape(name)}"]`);if(orig)orig.hidden=false;});
+      state[cart]=[];$('#'+cart+'Items').innerHTML='';
+      updateCounts();
+    }
+
+    function updateCounts() {
+      const total = $$('.card').length;
+      const visible = $$('.card:not([hidden])').length;
+      $('#totalCount').textContent = total;
+      $('#visibleCount').textContent = visible;
+    }
+
+    // Function to open image in new tab
+    function openImage(imageset_name, imagePath) {
+      // Get the base URL (location of the current HTML file)
+      const baseUrl = window.location.href.substring(0, window.location.href.lastIndexOf('/') + 1);
+
+      // Construct the full path
+      const fullPath = `${baseUrl}${imageset_name}/${imagePath}`;
+
+      // Open the image in a new tab
+      window.open(fullPath, '_blank');
+    }
+    
+    // Helper function to join Windows paths properly
+    function joinWinPath(dir, name) {
+      let p = dir.replace(/\//g, '\\');
+      if (!p.endsWith('\\')) p += '\\';
+      return p + name;
+    }
+    
+    // Function to copy a Windows path
+    function copyWindowsPath(btn) {
+      const folderPath = btn.dataset.folder;
+      const imagesetName = btn.dataset.imageset;
+      const path = joinWinPath(folderPath, imagesetName);
+      navigator.clipboard.writeText(path).then(() => {
+        showToast('Copied path');
+      }).catch(err => {
+        console.error('Failed to copy: ', err);
+        showToast('Copy failed');
+      });
+    }
+
+    $('#body').addEventListener('click',e=>{
+      const card=e.target.closest('.card');
+      if(!card)return;
+      if(e.target.classList.contains('keep-btn'))addToCart(card,'keep');
+      if(e.target.classList.contains('archive-btn'))addToCart(card,'archive');
+    });
+
+    $('#copyKeepBtn').onclick=()=>copyList('keep');
+    $('#clearKeepBtn').onclick=()=>clearCart('keep');
+    $('#copyArchiveBtn').onclick=()=>copyList('archive');
+    $('#clearArchiveBtn').onclick=()=>clearCart('archive');
+
+    $('#year').textContent=new Date().getFullYear();
+
+    // Handle missing images
+    document.addEventListener('DOMContentLoaded', function() {
+      // Handle missing images
+      const cards = $$('.card');
+      cards.forEach(card => {
+        const img = card.querySelector('img');
+        if (img) {
+          img.onerror = function() {
+            card.classList.add('hidden');
+            updateCounts();
+          };
+        }
+      });
+      
+      updateCounts();
+    });
+  </script>
+</body>
+</html>
