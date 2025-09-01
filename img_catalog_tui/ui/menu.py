@@ -233,6 +233,10 @@ class MenuApp(App):
 
 class QuestionScreen(Screen):
     """Screen for asking all questions at once with clean grid form."""
+    
+    BINDINGS = [
+        Binding("escape", "cancel", "Cancel")
+    ]
 
     def __init__(self, command: str, questions: List[str], parent_app: MenuApp):
         super().__init__()
@@ -271,6 +275,10 @@ class QuestionScreen(Screen):
     @on(Button.Pressed, "#btn_cancel")
     def cancel(self) -> None:
         # Simply pop back to menu
+        self.app.pop_screen()
+        
+    def action_cancel(self) -> None:
+        # Handle escape key to cancel
         self.app.pop_screen()
 
     @on(Button.Pressed, "#btn_submit")

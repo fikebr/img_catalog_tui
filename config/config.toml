@@ -29,3 +29,4 @@ fooocus_exif_field = "PNG:parameters"
 [paths]
 templates_dir = "config/templates"
 menu_config = "config/menu.toml"
+

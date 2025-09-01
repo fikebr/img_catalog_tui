@@ -5,8 +5,11 @@ Configuration handling for the Image Catalog TUI application.
 import logging
 import os
 from typing import Any, Dict, List, Optional
+from dotenv import load_dotenv
 
 import toml
+
+load_dotenv()
 
 
 class Config:
@@ -27,6 +30,9 @@ class Config:
         self.config_data: Dict[str, Any] = {}
         self.menu_config: Dict[str, Any] = {}
         self.config_dir = os.path.dirname(os.path.abspath(config_file))
+        self.openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
+        self.openrouter_model = os.getenv("OPENROUTER_MODEL")
+        self.openrouter_base_url = os.getenv("OPENROUTER_BASE_URL")
         
     def load(self) -> bool:
         """
