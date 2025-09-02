@@ -1,14 +1,14 @@
 import os
 import logging
 import json
-from typing import List, Optional, Any, Union
+from typing import Optional, Any
 
 import instructor
 from openai import OpenAI
-from pydantic import BaseModel, Field, conlist, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 from img_catalog_tui.config import Config
-from img_catalog_tui.logger import setup_logging
+# from img_catalog_tui.logger import setup_logging
 from img_catalog_tui.core.openrouter import Openrouter
 
 
@@ -29,7 +29,7 @@ class ProductPost(BaseModel):
         description="SEO-friendly description tuned for the target marketplace."
     )
     tags: list[str] = Field(
-        description="15–20 SEO-friendly tags (mix of short/long tail)."
+        description="15-20 SEO-friendly tags (mix of short/long tail)."
     )
 
 
