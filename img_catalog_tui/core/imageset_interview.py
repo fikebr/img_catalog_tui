@@ -123,13 +123,11 @@ class Interview:
         # Only validate if provided; your code path might support text-only interviews later
         self.image_file = self._validate_image_file(image_file)
 
-        self.interview_response: Optional[str] = None
-        self.interview_raw: Optional[dict] = None
-        self.interview_parsed: Optional[InterviewResults] = None
+        self.interview_response: Optional[str] = None # the full text of the interview results
+        self.interview_raw: Optional[dict] = None # the raw json of the interview request
+        self.interview_parsed: Optional[InterviewResults] = None # the parsed results from the instructor module
 
         self.openrouter = Openrouter(self.config)
-
-    # ---- setup helpers
 
     def _get_instructor_client(self):
         """Return an instructor-patched OpenAI client."""
@@ -178,6 +176,7 @@ class Interview:
         template_dir = paths.get("templates_dir", "config/templates")
 
         template_file = os.path.join(template_dir, f"interview_{prompt_template}.tmpl")
+        
         if os.path.exists(template_file):
             with open(template_file, "r", encoding="utf-8") as fh:
                 prompt = fh.read()
@@ -187,7 +186,6 @@ class Interview:
         logging.error("Prompt template file not found: %s", template_file)
         raise FileNotFoundError(f"Prompt template file not found: {prompt_template}")
 
-    # ---- main actions
 
     def interview_image(self):
         """Send the image + prompt to your OpenRouter wrapper and capture raw + text."""
@@ -228,25 +226,7 @@ class Interview:
 
             logging.info("Parsing interview into structured schema")
             logging.debug("Raw interview response to parse: %s", self.interview_response)
-            prompt = f"""Parse this text into the requested JSON schema. 
-
-The response MUST be a valid JSON object with exactly this structure:
-{{
-  "etsy_post": {{
-    "title": "string",
-    "description": "string", 
-    "tags": ["tag1", "tag2", "tag3"]
-  }},
-  "redbubble_post": {{
-    "title": "string",
-    "description": "string",
-    "tags": ["tag1", "tag2", "tag3"]
-  }}
-}}
-
-Extract the information from this text and format it as valid JSON:
-
-{self.interview_response}"""
+            prompt = f"Extract the information from this interview text and structure it for marketplace posts:\n\n{self.interview_response}"
 
             # Text-only message must be a string, not a list
             messages = [
@@ -369,6 +349,28 @@ Extract the information from this text and format it as valid JSON:
         except Exception as e:
             logging.exception("Error saving JSON interview: %s", e)
             raise RuntimeError(f"Failed to save JSON interview: {e}") from e
+        
+    def save_all_files(self):
+        
+        logging.info("Interview Save All: Started")
+
+        if not self.interview_response:
+            logging.error("Interview Response not created yet.")
+            return
+        if not self.interview_raw:
+            logging.error("Interview Raw not created yet.")
+            return
+        if not self.interview_parsed:
+            logging.error("Interview Parsed not created yet.")
+            return
+        
+        self.save_text_interview()
+        self.save_raw_interview()
+        self.save_json_interview()
+        
+        logging.info("Interview Save All: Complete")
+
+        
 
 
 
@@ -386,20 +388,21 @@ if __name__ == "__main__":
 
     # Example image
     # image_file = r"E:\fooocus\images\new\2025-08-03_tmp\2025-08-03_00-05-54_8875\2025-08-03_00-05-54_8875_orig.png"
-    image_file = r"E:\fooocus\images\new\2025-08-05\2025-08-05_00-39-19_4378\2025-08-05_00-39-19_4378_orig.png"
+    image_file = r"E:\fooocus\images\new\2025-08-05\2025-08-05_05-40-52_2470\2025-08-05_05-40-52_2470_orig.png"
 
     interview = Interview(config=config, image_file=image_file)
     try:
         interview.interview_image()
         print("Interview response (truncated):", (interview.interview_response or "")[:400], "...\n")
-        interview.save_raw_interview()
-        interview.save_text_interview()
+        # interview.save_raw_interview()
+        # interview.save_text_interview()
 
         interview.parse_interview()
         # Pretty-print the structured result
         print("Interview results (JSON):")
         print(interview.interview_parsed.model_dump_json(indent=2))
-        interview.save_json_interview()
+        # interview.save_json_interview()
+        interview.save_all_files()
 
     except Exception as e:
         print(f"Error testing interview: {e}")

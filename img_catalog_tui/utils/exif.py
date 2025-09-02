@@ -5,7 +5,7 @@ EXIF data extraction utilities for the Image Catalog TUI application.
 import json
 import logging
 import pprint
-from typing import Dict, Optional, Tuple, Any
+from typing import Dict, Tuple, Any
 
 try:
     # Suppress PIL debug logging
@@ -14,7 +14,7 @@ try:
     pil_logger.setLevel(pil_logging.INFO)  # Set to INFO to suppress DEBUG messages
     
     from PIL import Image, ExifTags
-    from PIL.PngImagePlugin import PngInfo
+    # from PIL.PngImagePlugin import PngInfo
 except ImportError:
     logging.error("PIL not installed. EXIF extraction will not work.")
 
@@ -90,7 +90,7 @@ def is_fooocus_image(exif_data: Dict[str, Any], scheme_field: str = "PNG:Fooocus
             if any(key in params_dict for key in fooocus_indicators):
                 logging.debug("Identified as Fooocus image by Parameters content")
                 return True
-        except:
+        except (json.JSONDecodeError, KeyError, TypeError):
             pass
             
     logging.debug("Not identified as a Fooocus image")

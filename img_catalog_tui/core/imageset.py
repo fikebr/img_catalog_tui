@@ -5,11 +5,100 @@ Image set operations for the Image Catalog TUI application.
 import logging
 import os
 from typing import Dict, List, Any, Optional
+from pydantic import BaseModel, Field
 
 from img_catalog_tui.config import Config
 from img_catalog_tui.core.metadata import load_imageset_metadata, save_imageset_metadata
 from img_catalog_tui.utils.file_utils import find_file_with_tag
 
+# ------- Data Models --------------------
+
+class ImagesetFile(BaseModel):
+    """Each File in a Dataset."""
+    title: str = Field(
+        description="SEO-friendly title for the product post.",
+        example=("Transform your space with this charming vintage-style sloth gentleman "
+                 "portrait on premium canvas! This delightfully quirky art print features "
+                 "a dapper sloth dressed in Victorian-era formal attire, complete with "
+                 "waistcoat and cravat.")
+    )
+    description: str = Field(
+        description="SEO-friendly description tuned for the target marketplace."
+    )
+    tags: list[str] = Field(
+        description="15-20 SEO-friendly tags (mix of short/long tail)."
+    )
+
+
+
+class Imageset():
+    
+    def __init__(
+        self,
+        config: Config,
+        folder_name: str,
+        imageset_name: str
+    ):
+        
+        self.config = config
+        self.folder_name = folder_name
+        self.imageset_name = imageset_name
+        self.imageset_folder = self._get_imageset_folder()
+        self.files = self._get_imageset_files() # dict{filename: dict{fullpath, ext, tags}}
+        
+        def _get_imageset_folder(self):
+            if not os.path.exists(self.folder_name):
+                logging.error(f"Base folder not found: {self.folder_name}")
+                raise(f"Base folder not found: {self.folder_name}")
+
+            imageset_folder = os.path.join(self.folder_name, self.imageset_name)            
+            
+            if not os.path.exists(imageset_folder):
+                logging.error(f"Imageset Folder does not exist: {imageset_folder}")
+                raise(f"Imageset Folder does not exist: {imageset_folder}")
+            
+            return(imageset_folder)
+        
+        def _get_imageset_files(self):
+            
+            files = {}
+            
+            tags = self.config.file_tags
+            
+            imageset_folder = os.path.join(self.folder_name, self.imageset_name)
+            
+            try:
+                if not os.path.exists(imageset_folder):
+                    logging.error(f"Imageset folder does not exist: {imageset_folder}")
+                    raise(f"Imageset folder does not exist: {imageset_folder}")
+                    
+                # Get all files in the imageset folder
+                for file_name in os.listdir(imageset_folder):
+                    file_path = os.path.join(imageset_folder, file_name)
+                    file_ext = os.path.splitext(file_name)[1] 
+                    
+                    # Skip directories
+                    if not os.path.isfile(file_path):
+                        continue
+                        
+                    # Check for tags
+                    file_tags = []
+                    for tag in tags:
+                        if f"_{tag}_" in file_name or f"_{tag}." in file_name:
+                            file_tags.append(tag)
+                            
+                    # load the file into the files dict
+                    files[file_name] = {"fullpath": file_path, "ext": file_ext, "tags": file_tags}
+                            
+                return files
+                
+            except Exception as e:
+                logging.error(f"Error getting files for imageset {self.imageset_name}: {e}", exc_info=True)
+                raise(f"Error getting files for imageset {self.imageset_name}: {e}")
+
+
+                
+                
 
 def get_imageset_files(folder_name: str, imageset: str) -> Dict[str, str]:
     """
