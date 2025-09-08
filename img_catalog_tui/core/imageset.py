@@ -4,31 +4,11 @@ Image set operations for the Image Catalog TUI application.
 
 import logging
 import os
-from typing import Dict, List, Any, Optional
-from pydantic import BaseModel, Field
+from typing import Dict, Any
 
 from img_catalog_tui.config import Config
 from img_catalog_tui.core.metadata import load_imageset_metadata, save_imageset_metadata
-from img_catalog_tui.utils.file_utils import find_file_with_tag
-
-# ------- Data Models --------------------
-
-class ImagesetFile(BaseModel):
-    """Each File in a Dataset."""
-    title: str = Field(
-        description="SEO-friendly title for the product post.",
-        example=("Transform your space with this charming vintage-style sloth gentleman "
-                 "portrait on premium canvas! This delightfully quirky art print features "
-                 "a dapper sloth dressed in Victorian-era formal attire, complete with "
-                 "waistcoat and cravat.")
-    )
-    description: str = Field(
-        description="SEO-friendly description tuned for the target marketplace."
-    )
-    tags: list[str] = Field(
-        description="15-20 SEO-friendly tags (mix of short/long tail)."
-    )
-
+from img_catalog_tui.core.imageset_toml import ImagesetToml
 
 
 class Imageset():
@@ -44,102 +24,116 @@ class Imageset():
         self.folder_name = folder_name
         self.imageset_name = imageset_name
         self.imageset_folder = self._get_imageset_folder()
+        self.toml = ImagesetToml(imageset_folder=self.imageset_folder)
         self.files = self._get_imageset_files() # dict{filename: dict{fullpath, ext, tags}}
         
-        def _get_imageset_folder(self):
-            if not os.path.exists(self.folder_name):
-                logging.error(f"Base folder not found: {self.folder_name}")
-                raise(f"Base folder not found: {self.folder_name}")
+    def _get_imageset_folder(self):
+        if not os.path.exists(self.folder_name):
+            logging.error(f"Base folder not found: {self.folder_name}")
+            raise FileNotFoundError(f"Base folder not found: {self.folder_name}")
 
-            imageset_folder = os.path.join(self.folder_name, self.imageset_name)            
-            
-            if not os.path.exists(imageset_folder):
-                logging.error(f"Imageset Folder does not exist: {imageset_folder}")
-                raise(f"Imageset Folder does not exist: {imageset_folder}")
-            
-            return(imageset_folder)
+        imageset_folder = os.path.join(self.folder_name, self.imageset_name)            
         
-        def _get_imageset_files(self):
-            
-            files = {}
-            
-            tags = self.config.file_tags
-            
-            imageset_folder = os.path.join(self.folder_name, self.imageset_name)
-            
-            try:
-                if not os.path.exists(imageset_folder):
-                    logging.error(f"Imageset folder does not exist: {imageset_folder}")
-                    raise(f"Imageset folder does not exist: {imageset_folder}")
-                    
-                # Get all files in the imageset folder
-                for file_name in os.listdir(imageset_folder):
-                    file_path = os.path.join(imageset_folder, file_name)
-                    file_ext = os.path.splitext(file_name)[1] 
-                    
-                    # Skip directories
-                    if not os.path.isfile(file_path):
-                        continue
-                        
-                    # Check for tags
-                    file_tags = []
-                    for tag in tags:
-                        if f"_{tag}_" in file_name or f"_{tag}." in file_name:
-                            file_tags.append(tag)
-                            
-                    # load the file into the files dict
-                    files[file_name] = {"fullpath": file_path, "ext": file_ext, "tags": file_tags}
-                            
-                return files
-                
-            except Exception as e:
-                logging.error(f"Error getting files for imageset {self.imageset_name}: {e}", exc_info=True)
-                raise(f"Error getting files for imageset {self.imageset_name}: {e}")
-
-
-                
-                
-
-def get_imageset_files(folder_name: str, imageset: str) -> Dict[str, str]:
-    """
-    Get all files for an imageset with their tags.
-    
-    Args:
-        folder_name: Path to the parent folder
-        imageset: Name of the imageset
-        
-    Returns:
-        Dictionary mapping tags to file paths
-    """
-    result = {}
-    imageset_folder = os.path.join(folder_name, imageset)
-    
-    try:
         if not os.path.exists(imageset_folder):
-            logging.error(f"Imageset folder does not exist: {imageset_folder}")
-            return result
-            
-        # Get all files in the imageset folder
-        for file_name in os.listdir(imageset_folder):
-            file_path = os.path.join(imageset_folder, file_name)
-            
-            # Skip directories
-            if not os.path.isfile(file_path):
-                continue
-                
-            # Check for tags
-            tags = ["orig", "thumb", "v2", "v3", "v4", "v5", "up2", "up3", "up4", "up6"]
-            for tag in tags:
-                tag_pattern = f"_{tag}"
-                if tag_pattern in file_name:
-                    result[tag] = file_path
-                    break
-                    
-        return result
+            logging.error(f"Imageset Folder does not exist: {imageset_folder}")
+            raise FileNotFoundError(f"Imageset Folder does not exist: {imageset_folder}")
         
-    except Exception as e:
-        logging.error(f"Error getting files for imageset {imageset}: {e}", exc_info=True)
-        return result
+        return(imageset_folder)
+        
+    def _get_imageset_files(self):
+        
+        files = {}
+        
+        tags = self.config.get_file_tags()
+        
+        imageset_folder = os.path.join(self.folder_name, self.imageset_name)
+        
+        try:
+            if not os.path.exists(imageset_folder):
+                logging.error(f"Imageset folder does not exist: {imageset_folder}")
+                raise FileNotFoundError(f"Imageset folder does not exist: {imageset_folder}")
+                
+            # Get all files in the imageset folder
+            for file_name in os.listdir(imageset_folder):
+                file_path = os.path.join(imageset_folder, file_name)
+                file_ext = os.path.splitext(file_name)[1] 
+                
+                # Skip directories
+                if not os.path.isfile(file_path):
+                    continue
+                    
+                # Check for tags
+                file_tags = []
+                for tag in tags:
+                    if f"_{tag}_" in file_name or f"_{tag}." in file_name:
+                        file_tags.append(tag)
+                        
+                # load the file into the files dict
+                files[file_name] = {"fullpath": file_path, "ext": file_ext, "tags": file_tags}
+                        
+            return files
+            
+        except Exception as e:
+            logging.error(f"Error getting files for imageset {self.imageset_name}: {e}", exc_info=True)
+            raise RuntimeError(f"Error getting files for imageset {self.imageset_name}: {e}")
+        
+    def has_file_orig(self) -> bool:
+        pass
+
+    def has_file_interview(self) -> bool:
+        pass
+
+    def has_file_thumb(self) -> bool:
+        pass
+    
+    def has_file_toml(self) -> bool:
+        pass
+
+
+
+                
+                
+
+# def get_imageset_files(folder_name: str, imageset: str) -> Dict[str, str]:
+#     """
+#     Get all files for an imageset with their tags.
+    
+#     Args:
+#         folder_name: Path to the parent folder
+#         imageset: Name of the imageset
+        
+#     Returns:
+#         Dictionary mapping tags to file paths
+#     """
+#     result = {}
+#     imageset_folder = os.path.join(folder_name, imageset)
+    
+#     try:
+#         if not os.path.exists(imageset_folder):
+#             logging.error(f"Imageset folder does not exist: {imageset_folder}")
+#             return result
+            
+#         # Get all files in the imageset folder
+#         for file_name in os.listdir(imageset_folder):
+#             file_path = os.path.join(imageset_folder, file_name)
+            
+#             # Skip directories
+#             if not os.path.isfile(file_path):
+#                 continue
+                
+#             # Check for tags
+#             tags = ["orig", "thumb", "v2", "v3", "v4", "v5", "up2", "up3", "up4", "up6"]
+#             for tag in tags:
+#                 tag_pattern = f"_{tag}"
+#                 if tag_pattern in file_name:
+#                     result[tag] = file_path
+#                     break
+                    
+#         return result
+        
+#     except Exception as e:
+#         logging.error(f"Error getting files for imageset {imageset}: {e}", exc_info=True)
+#         return result
 
 
 def generate_html_report(folder_name: str, imageset: str, config: Config) -> bool:
@@ -294,53 +288,66 @@ def generate_html_content(imageset: str, metadata: Dict[str, Any], files: Dict[s
     return html
 
 
-def process_interview(folder_name: str, imageset: str, template_name: str, config: Config) -> bool:
-    """
-    Process an interview for an imageset.
+# def process_interview(folder_name: str, imageset: str, template_name: str, config: Config) -> bool:
+#     """
+#     Process an interview for an imageset.
     
-    Args:
-        folder_name: Path to the parent folder
-        imageset: Name of the imageset
-        template_name: Name of the interview template
-        config: Application configuration
+#     Args:
+#         folder_name: Path to the parent folder
+#         imageset: Name of the imageset
+#         template_name: Name of the interview template
+#         config: Application configuration
         
-    Returns:
-        True if successful, False otherwise
-    """
-    try:
-        # Load template
-        templates_dir = config.get("paths.templates_dir", "./config/templates")
-        template_file = os.path.join(templates_dir, f"{template_name}.tmpl")
+#     Returns:
+#         True if successful, False otherwise
+#     """
+#     try:
+#         # Load template
+#         templates_dir = config.get("paths.templates_dir", "./config/templates")
+#         template_file = os.path.join(templates_dir, f"{template_name}.tmpl")
         
-        if not os.path.exists(template_file):
-            logging.error(f"Template file not found: {template_file}")
-            return False
+#         if not os.path.exists(template_file):
+#             logging.error(f"Template file not found: {template_file}")
+#             return False
             
-        # Load template content
-        with open(template_file, "r") as f:
-            template_content = f.read()
+#         # Load template content
+#         with open(template_file, "r") as f:
+#             template_content = f.read()
             
-        # Load imageset metadata
-        metadata = load_imageset_metadata(folder_name, imageset)
-        if not metadata:
-            metadata = {"imageset": imageset}
+#         # Load imageset metadata
+#         metadata = load_imageset_metadata(folder_name, imageset)
+#         if not metadata:
+#             metadata = {"imageset": imageset}
             
-        # Ensure interview section exists
-        if "interview" not in metadata:
-            metadata["interview"] = {}
+#         # Ensure interview section exists
+#         if "interview" not in metadata:
+#             metadata["interview"] = {}
             
-        # Update interview metadata
-        metadata["interview"]["template_used"] = template_name
+#         # Update interview metadata
+#         metadata["interview"]["template_used"] = template_name
         
-        # TODO: Implement interactive interview process
-        # This would be part of the TUI implementation
+#         # TODO: Implement interactive interview process
+#         # This would be part of the TUI implementation
         
-        # For now, just save the updated metadata
-        if save_imageset_metadata(folder_name, imageset, metadata):
-            logging.info(f"Interview template {template_name} applied to {imageset}")
-            return True
-        return False
+#         # For now, just save the updated metadata
+#         if save_imageset_metadata(folder_name, imageset, metadata):
+#             logging.info(f"Interview template {template_name} applied to {imageset}")
+#             return True
+#         return False
         
-    except Exception as e:
-        logging.error(f"Error processing interview for {imageset}: {e}", exc_info=True)
-        return False
+#     except Exception as e:
+#         logging.error(f"Error processing interview for {imageset}: {e}", exc_info=True)
+#         return False
+
+
+if __name__ == "__main__":
+    
+    config = Config()
+    config.load()
+    
+    folder = r"E:\fooocus\images\new\2025-08-03_tmp"
+    imageset_name = "2025-08-03_00-00-23_7134"
+    
+    imageset = Imageset(config=config, folder_name=folder, imageset_name=imageset_name)
+    
+    print(imageset.toml.get())

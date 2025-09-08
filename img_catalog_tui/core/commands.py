@@ -3,7 +3,7 @@ Command handlers for the Image Catalog TUI application.
 """
 
 import logging
-from typing import Dict, Any, Callable, Optional
+from typing import Dict, Any, Callable
 
 from img_catalog_tui.config import Config
 from img_catalog_tui.core.folder import folder_scan

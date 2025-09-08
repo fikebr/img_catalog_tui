@@ -388,21 +388,21 @@ if __name__ == "__main__":
 
     # Example image
     # image_file = r"E:\fooocus\images\new\2025-08-03_tmp\2025-08-03_00-05-54_8875\2025-08-03_00-05-54_8875_orig.png"
-    image_file = r"E:\fooocus\images\new\2025-08-05\2025-08-05_05-40-52_2470\2025-08-05_05-40-52_2470_orig.png"
+    image_file = r"E:\fooocus\images\new\2025-08-05\2025-08-05_00-29-53_7332\2025-08-05_00-29-53_7332_orig.png"
 
     interview = Interview(config=config, image_file=image_file)
     try:
         interview.interview_image()
         print("Interview response (truncated):", (interview.interview_response or "")[:400], "...\n")
-        # interview.save_raw_interview()
-        # interview.save_text_interview()
+        interview.save_raw_interview()
+        interview.save_text_interview()
 
         interview.parse_interview()
         # Pretty-print the structured result
         print("Interview results (JSON):")
         print(interview.interview_parsed.model_dump_json(indent=2))
-        # interview.save_json_interview()
-        interview.save_all_files()
+        interview.save_json_interview()
+        # interview.save_all_files()
 
     except Exception as e:
         print(f"Error testing interview: {e}")
