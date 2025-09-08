@@ -6,10 +6,12 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 
-LOG_FORMAT = "%(asctime)s %(levelname)s %(filename)s %(lineno)d - %(message)s"  #
+LOG_FORMAT = "%(asctime)s %(levelname)s %(filename)s %(funcName)s:%(lineno)d - %(message)s"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 LOG_FILE = "logs/app.log"
 LOG_FILE_MAX_SIZE = 10 * 1024 * 1024  # 10 MB
+LOG_LEVEL_CONSOLE = logging.DEBUG
+LOG_LEVEL_FILE = logging.DEBUG
 
 
 def setup_logging():
@@ -21,6 +23,10 @@ def setup_logging():
     """
     # Configure root logger
     logger = logging.getLogger()
+    
+    # Clear any existing handlers to prevent duplicate messages
+    logger.handlers.clear()
+    
     # Set root logger to DEBUG to capture all levels
     logger.setLevel(logging.DEBUG)
 
@@ -37,13 +43,13 @@ def setup_logging():
     file_handler = RotatingFileHandler(
         LOG_FILE, maxBytes=LOG_FILE_MAX_SIZE, backupCount=5
     )
-    file_handler.setLevel(logging.DEBUG)  # File gets DEBUG and above
+    file_handler.setLevel(LOG_LEVEL_FILE)  # File gets DEBUG and above
     file_handler.setFormatter(logging.Formatter(LOG_FORMAT, DATE_FORMAT))
     logger.addHandler(file_handler)
 
     # Set up console handler for INFO and above
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)  # Console gets INFO and above
+    console_handler.setLevel(LOG_LEVEL_CONSOLE)  # Console gets INFO and above
     console_handler.setFormatter(logging.Formatter(LOG_FORMAT, DATE_FORMAT))
     logger.addHandler(console_handler)
     

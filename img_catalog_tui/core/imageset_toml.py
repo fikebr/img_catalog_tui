@@ -36,7 +36,7 @@ class ImagesetToml:
                 # Read existing TOML file
                 with open(self.toml_file, 'rb') as f:
                     self._data = tomllib.load(f)
-                logging.info(f"Loaded existing TOML file: {self.toml_file}")
+                logging.debug(f"Loaded existing TOML file: {self.toml_file}")
             else:
                 # Create new TOML file with default data
                 self._data = {"imageset": self.imageset_name}
