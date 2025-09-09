@@ -2,6 +2,7 @@
 
 # File tags used for identifying image variants
 file_tags = ["orig", "thumb", "v2", "v3", "v4", "v5", "up2", "up3", "up4", "up6", "interview", "raw"]
+img_file_ext = ["png", "jpg", "jpeg", "bmp"]
 
 # Logging configuration
 [logging]

@@ -1,7 +1,3 @@
-"""
-Folder operations for the Image Catalog TUI application.
-"""
-
 import logging
 import os
 from typing import Dict, List, Any
@@ -12,6 +8,31 @@ from img_catalog_tui.utils.file_utils import (
     create_folder, delete_folder, find_file_with_tag,
     get_imageset_from_filename, is_image_file, move_files
 )
+
+from img_catalog_tui.config import Config
+from img_catalog_tui.logger import setup_logging
+
+
+
+class ImagesetFolder:
+    
+    def __init__(self, config: Config, foldername: str):
+        
+        self.foldername = self._validate_foldername(foldername)
+        
+        
+    def _validate_foldername(self, foldername: str):
+        if os.path.exists(foldername) and os.path.isdir(foldername):
+            return foldername
+        else:
+            raise FileNotFoundError(f"Folder does not exist: {foldername}")
+        
+
+        
+        
+        
+        
+    
 
 
 def get_imagesets_in_folder(folder_name: str, config: Config) -> List[str]:
@@ -246,3 +267,13 @@ def folder_scan(args: Dict[str, Any], config: Config) -> bool:
     except Exception as e:
         logging.error(f"Error scanning folder: {e}", exc_info=True)
         return False
+
+if __name__ == "__main__":
+    
+    config = Config()
+    config.load()
+    setup_logging()
+    
+    foldername = r""
+    
+    folder = ImagesetFolder(config=config, foldername=foldername)

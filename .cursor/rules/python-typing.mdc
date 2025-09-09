@@ -1,0 +1,5 @@
+---
+globs: *.py
+alwaysApply: false
+---
+always use built in type hints. do not use the "typing" module unless you really have to.
