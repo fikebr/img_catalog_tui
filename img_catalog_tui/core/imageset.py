@@ -21,10 +21,81 @@ class Imageset():
         self.imageset_folder = self._get_imageset_folder()
         self.toml = ImagesetToml(imageset_folder=self.imageset_folder)
         self.files = self._get_imageset_files() # dict{filename: dict{fullpath, ext, tags}}
+        self._status = "new" # new, edit, working, posted
+        self._edits = "" # creative, photoshop, rmbg
+        self._needs = "" # upscale, vector, orig, thumbnail, interview
 
         self.get_exif_data()
         
+    def to_dict(self):
+        
+        biz = self.toml.get("biz")
+        source_data = self.toml.get("source")
+        source = source_data if isinstance(source_data, str) else ""
+        source_section = {}
+        
+        if source:
+            source_section = self.toml.get(source)
+            
+        prompt = ""
+        
+        if source_section and isinstance(source_section, dict):
+            prompt = source_section.get("prompt", "")
+            
+        data = {
+            "imageset_name": self.imageset_name,
+            "imageset_folder": self.imageset_folder,
+            "status": self.status,
+            "edits": self.edits,
+            "needs": self.needs,
+            "posted_to": biz.get("posted_to", "") if isinstance(biz, dict) else "",
+            "prompt": prompt,
+            "source": source,
+            "files": self.files
+        }
+        
+        if biz:
+            data["biz"] = biz
+        
+        return data
+
+
+    @property
+    def edits(self) -> str:
+        return self.toml.get(key="edits")
+        
+    # TODO: in the setter function enforce the selection option from config data
+    # TODO: implement setter\getters for good_for & posted_to
+    @edits.setter
+    def edits(self, value: str) -> None:
+        self._edits = value
+        self.toml.set(key="edits", value=value)
+
+    @property
+    def status(self) -> str:
+        return self.toml.get(key="status")
+    
+    @status.setter
+    def status(self, value: str) -> None:
+        self._status = value
+        self.toml.set(key="status", value=value)
+
+    @property
+    def needs(self) -> str:
+        return self.toml.get(key="needs")
+    
+    @needs.setter
+    def needs(self, value: str) -> None:
+        self._needs = value
+        self.toml.set(key="needs", value=value)
+
+    def get_orig_file(self):
+        # TODO: is there an orig file. determine\tag orig. return orig file
+        
+        pass
+        
     def get_exif_data(self):
+        """get the exif data and set into self.toml"""
         
         toml = self.toml.get()
         source = toml.get("source", None)
@@ -48,8 +119,8 @@ class Imageset():
             self.toml.set(key="source", value=metadata.source)
             self.toml.set(section=metadata.source, value=metadata.data)
             
-    def get_file_orig(self):
-        """Get the first file in the imageset folder that contains '_orig' in its filename."""
+    def get_file_orig(self) -> str | None:
+        """Get the first file in the self.files dict that contains '_orig' in its filename."""
         
         try:
             for filename, file_info in self.files.items():
@@ -78,6 +149,7 @@ class Imageset():
         return(imageset_folder)
         
     def _get_imageset_files(self):
+        """get the files in the imageset folder. returns a dict with this structure... dict{filename: dict{fullpath, ext, tags}}"""
         
         files = {}
         

@@ -58,6 +58,55 @@ def create_folder(folder_path: str) -> bool:
         return False
 
 
+def move_folder(source_folder: str, target_folder: str) -> str:
+    """
+    Move source folder to target folder.
+    
+    Args:
+        source_folder: Path to the source folder to move
+        target_folder: Path to the target location
+        
+    Returns:
+        Full path of the moved folder
+        
+    Raises:
+        FileNotFoundError: If source folder doesn't exist
+        FileExistsError: If target folder already exists
+        OSError: If move operation fails
+    """
+    try:
+        # Validate that source folder exists
+        if not os.path.exists(source_folder):
+            raise FileNotFoundError(f"Source folder does not exist: {source_folder}")
+        
+        if not os.path.isdir(source_folder):
+            raise ValueError(f"Source is not a directory: {source_folder}")
+        
+        # Get the folder name from source path
+        folder_name = os.path.basename(source_folder)
+        new_folder_path = os.path.join(target_folder, folder_name)
+        
+        # Validate that target folder does not already exist
+        if os.path.exists(new_folder_path):
+            raise FileExistsError(f"Target folder already exists: {new_folder_path}")
+        
+        # Create parent directory if it doesn't exist
+        if not os.path.exists(target_folder):
+            os.makedirs(target_folder, exist_ok=True)
+            logging.info(f"Created parent directory: {target_folder}")
+        
+        # Move source folder to target folder
+        shutil.move(source_folder, new_folder_path)
+        logging.info(f"Moved folder: {source_folder} -> {new_folder_path}")
+        
+        # Return the full path of the new folder
+        return new_folder_path
+        
+    except Exception as e:
+        logging.error(f"Error moving folder {source_folder} to {target_folder}: {e}", exc_info=True)
+        raise
+
+
 def move_files(pattern: str, source_folder: str, dest_folder: str) -> List[str]:
     """
     Move files matching a pattern from source to destination folder.
@@ -99,7 +148,7 @@ def move_files(pattern: str, source_folder: str, dest_folder: str) -> List[str]:
         return moved_files
 
 
-def get_imageset_from_filename(file_name: str, file_tags: List[str]) -> Tuple[str, str, List[str]]:
+def get_imageset_from_filename(file_name: str, file_tags: list[str]) -> tuple[str, str, list[str]]:
     """
     Extract imageset name and tags from a filename.
     

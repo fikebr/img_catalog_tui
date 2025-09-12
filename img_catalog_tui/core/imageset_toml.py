@@ -33,13 +33,58 @@ class ImagesetToml:
         """Loads existing TOML file or creates a new one with default data."""
         try:
             if os.path.exists(self.toml_file):
-                # Read existing TOML file
-                with open(self.toml_file, 'rb') as f:
-                    self._data = tomllib.load(f)
-                logging.debug(f"Loaded existing TOML file: {self.toml_file}")
+                # Read existing TOML file with encoding fallback
+                try:
+                    with open(self.toml_file, 'rb') as f:
+                        self._data = tomllib.load(f)
+                    logging.debug(f"Loaded existing TOML file: {self.toml_file}")
+                except UnicodeDecodeError as ude:
+                    logging.warning(f"UTF-8 decode error in {self.toml_file}: {ude}")
+                    # Try to read with different encodings
+                    encodings_to_try = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1']
+                    content_loaded = False
+                    
+                    for encoding in encodings_to_try:
+                        try:
+                            with open(self.toml_file, 'r', encoding=encoding) as f:
+                                content = f.read()
+                            # Try to clean up problematic characters
+                            content = content.replace('\x92', "'")  # Replace smart quote
+                            content = content.replace('\x93', '"')  # Replace left double quote
+                            content = content.replace('\x94', '"')  # Replace right double quote
+                            
+                            # Parse the cleaned content
+                            self._data = tomllib.loads(content)
+                            logging.info(f"Successfully loaded TOML file with {encoding} encoding after cleanup: {self.toml_file}")
+                            
+                            # Rewrite the file with proper UTF-8 encoding
+                            with open(self.toml_file, 'wb') as f:
+                                tomli_w.dump(self._data, f)
+                            logging.info(f"Rewrote TOML file with proper UTF-8 encoding: {self.toml_file}")
+                            content_loaded = True
+                            break
+                        except (UnicodeDecodeError, tomllib.TOMLDecodeError):
+                            continue
+                    
+                    if not content_loaded:
+                        logging.error(f"Could not read TOML file with any encoding: {self.toml_file}")
+                        # Create backup and reinitialize
+                        backup_file = f"{self.toml_file}.backup"
+                        os.rename(self.toml_file, backup_file)
+                        logging.info(f"Backed up corrupted file to: {backup_file}")
+                        self._data = {"imageset": self.imageset_name}
+                        with open(self.toml_file, 'wb') as f:
+                            tomli_w.dump(self._data, f)
+                        logging.info(f"Created new TOML file with default data: {self.toml_file}")
             else:
                 # Create new TOML file with default data
-                self._data = {"imageset": self.imageset_name}
+                self._data = {
+                    "imageset": self.imageset_name,
+                    "status": "new",
+                    "edits": "",
+                    "needs": ""
+                }
+                
                 with open(self.toml_file, 'wb') as f:
                     tomli_w.dump(self._data, f)
                 logging.info(f"Created new TOML file: {self.toml_file}")
@@ -48,18 +93,38 @@ class ImagesetToml:
             logging.error(f"Error validating TOML file {self.toml_file}: {e}")
             raise
     
-    def get(self, section: str="") -> dict:
+    def get(self, section: str="", key: str="") -> dict | str:
         """Retrieves data from a specific section or returns all data."""
         try:
-            if section:
+            # If section is null and key is provided, get top-level item
+            if not section and key:
+                if key in self._data:
+                    return str(self._data[key])
+                else:
+                    return ""
+            
+            # If both section and key are provided, get item from section
+            elif section and key:
+                if section in self._data and isinstance(self._data[section], dict):
+                    if key in self._data[section]:
+                        return str(self._data[section][key])
+                    else:
+                        return ""
+                else:
+                    return ""
+            
+            # If only section is provided, return section data
+            elif section:
                 if section in self._data:
                     return self._data[section]
                 else:
                     return {}
+            
+            # If neither section nor key provided, return all data
             else:
                 return self._data
         except Exception as e:
-            logging.error(f"Error getting section '{section}': {e}")
+            logging.error(f"Error getting section '{section}', key '{key}': {e}")
             raise
     
     def set(self, section: str="", key: str="", value="") -> bool:

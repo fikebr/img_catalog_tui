@@ -4,6 +4,13 @@
 file_tags = ["orig", "thumb", "v2", "v3", "v4", "v5", "up2", "up3", "up4", "up6", "interview", "raw"]
 img_file_ext = ["png", "jpg", "jpeg", "bmp"]
 
+# selection options
+status = ["new", "edit", "working", "posted"]
+edits = ["creative", "photoshop", "rmbg"]
+needs = ["upscale", "vector", "orig", "thumbnail", "interview"]
+good_for = ["stock", "rb", "poster"]
+posted_to = ["stock", "rb", "tp", "faa", "etsy"]
+
 # Logging configuration
 [logging]
 level = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
