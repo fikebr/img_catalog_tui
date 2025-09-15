@@ -11,24 +11,6 @@ config = Config()
 config.load()
 
 
-def hello() -> str:
-    """Return a simple hello message."""
-    try:
-        logging.info("Hello endpoint accessed")
-        return render_template('index.html', title="Image Catalog TUI", message="Welcome to the Image Catalog!")
-    except Exception as e:
-        logging.error(f"Error in hello endpoint: {e}")
-        return jsonify({"error": "Internal server error"}), 500
-
-
-def health() -> tuple[dict, int]:
-    """Return health status of the application."""
-    try:
-        logging.info("Health check endpoint accessed")
-        return {"status": "healthy"}, 200
-    except Exception as e:
-        logging.error(f"Error in health endpoint: {e}")
-        return {"status": "error", "message": str(e)}, 500
     
 
 def folders():
@@ -39,6 +21,8 @@ def folders():
     except Exception as e:
         logging.error(f"Error getting folders: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
+    
+# TODO: implement an api route that takes a folder, a list of imagesets, a stat_field (status, edits, needs), a value and and an action (set, remove, add) then performs that action on each of the imagesets
 
 
 def folder(foldername: str):
@@ -51,6 +35,23 @@ def folder(foldername: str):
         
         # return a jsonify folder.to_dict()
         return jsonify(folder_obj.to_dict())
+        
+    except FileNotFoundError as e:
+        logging.error(f"Folder not found: {e}")
+        return jsonify({"error": f"Folder not found: {foldername}"}), 404
+    except Exception as e:
+        logging.error(f"Error processing folder {foldername}: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+    
+def review_new(foldername: str):
+    try:
+        folders_obj = Folders()
+        folder_path = folders_obj.folders[foldername]
+        # create a folder object for the foldername
+        folder_obj = ImagesetFolder(config=config, foldername=folder_path)
+        
+        # return a jsonify folder.to_dict()
+        return jsonify(folder_obj.review_new())
         
     except FileNotFoundError as e:
         logging.error(f"Folder not found: {e}")

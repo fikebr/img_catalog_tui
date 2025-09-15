@@ -51,7 +51,8 @@ class Imageset():
             "posted_to": biz.get("posted_to", "") if isinstance(biz, dict) else "",
             "prompt": prompt,
             "source": source,
-            "files": self.files
+            "files": self.files,
+            "cover": self.cover
         }
         
         if biz:
@@ -61,11 +62,66 @@ class Imageset():
 
 
     @property
+    def cover(self) -> str:
+        """Return the full path to a cover image for this imageset."""
+        
+        try:
+            # Get valid image file extensions from config
+            img_file_ext = self.config.config_data.get("img_file_ext", [])
+            
+            # Lists to store candidates
+            thumb_candidates = []
+            orig_candidates = []
+            image_candidates = []
+            
+            # Loop through all files
+            for filename, file_info in self.files.items():
+                file_ext = file_info["ext"].lower().lstrip('.')
+                file_tags = file_info["tags"]
+                file_path = file_info["fullpath"]
+                
+                # Check if file has valid image extension
+                if file_ext not in [ext.lower() for ext in img_file_ext]:
+                    continue
+                
+                # Add to appropriate candidate list
+                if "thumb" in file_tags:
+                    thumb_candidates.append(file_path)
+                elif "orig" in file_tags:
+                    orig_candidates.append(file_path)
+                else:
+                    image_candidates.append(file_path)
+            
+            # Return first thumb file if available
+            if thumb_candidates:
+                logging.debug(f"Found thumb image for cover: {thumb_candidates[0]}")
+                return thumb_candidates[0]
+            
+            # Return first orig file if available
+            if orig_candidates:
+                logging.debug(f"Found orig image for cover: {orig_candidates[0]}")
+                return orig_candidates[0]
+            
+            # Return first image file if available
+            if image_candidates:
+                logging.debug(f"Found image for cover: {image_candidates[0]}")
+                return image_candidates[0]
+            
+            # No image files found
+            logging.warning(f"No image files found for cover in imageset: {self.imageset_name}")
+            return ""
+            
+        except Exception as e:
+            logging.error(f"Error finding cover image: {e}", exc_info=True)
+            return ""
+
+    @property
     def edits(self) -> str:
         return self.toml.get(key="edits")
         
-    # TODO: in the setter function enforce the selection option from config data
+    # TODO: in the setter functions for edits, status, and needs enforce the selection option from config data
     # TODO: implement setter\getters for good_for & posted_to
+    
     @edits.setter
     def edits(self, value: str) -> None:
         self._edits = value
