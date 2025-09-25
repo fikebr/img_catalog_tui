@@ -59,6 +59,8 @@ def review_new(foldername: str):
     except Exception as e:
         logging.error(f"Error processing folder {foldername}: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
+
+# TODO: review
     
 
 def imageset(foldername: str, imageset: str):

@@ -4,7 +4,6 @@ Configuration handling for the Image Catalog TUI application.
 
 import logging
 import os
-from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 
 import toml
@@ -21,60 +20,65 @@ class Config:
     
     def __init__(self, config_file: str = "./config/config.toml"):
         """
-        Initialize the configuration manager.
+        Initialize the configuration manager and load configuration files.
         
         Args:
             config_file: Path to the main configuration file
+            
+        Raises:
+            FileNotFoundError: If the configuration file doesn't exist
+            Exception: If there's an error loading the configuration
         """
         self.config_file = config_file
-        self.config_data: Dict[str, Any] = {}
-        self.menu_config: Dict[str, Any] = {}
+        self.config_data: dict[str, object] = {}
+        self.menu_config: dict[str, object] = {}
         self.config_dir = os.path.dirname(os.path.abspath(config_file))
         self.openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
-        self.openrouter_model = os.getenv("OPENROUTER_MODEL")
+        self.openrouter_model_vision = os.getenv("OPENROUTER_MODEL_VISION")
+        self.openrouter_model_text = os.getenv("OPENROUTER_MODEL_TEXT")
         self.openrouter_base_url = os.getenv("OPENROUTER_BASE_URL")
         
-    def load(self) -> bool:
+        # Load configuration immediately
+        self._load_config()
+        self._load_menu_config()
+        
+    def _load_config(self) -> None:
         """
         Load the configuration from the specified file.
         
-        Returns:
-            bool: True if configuration was loaded successfully, False otherwise
+        Raises:
+            FileNotFoundError: If the configuration file doesn't exist
+            Exception: If there's an error loading the configuration
         """
+        if not os.path.exists(self.config_file):
+            logging.error(f"Configuration file not found: {self.config_file}")
+            raise FileNotFoundError(f"Configuration file not found: {self.config_file}")
+            
         try:
-            if not os.path.exists(self.config_file):
-                logging.error(f"Configuration file not found: {self.config_file}")
-                return False
-                
             logging.info(f"Loading configuration from {self.config_file}")
             self.config_data = toml.load(self.config_file)
             
-            # Load menu configuration
-            paths_config = self.get("paths", {})
-            menu_config_path = paths_config.get("menu_config", "./config/menu.toml")
-            self.load_menu_config(menu_config_path)
-            
-            return True
-            
         except Exception as e:
             logging.error(f"Error loading configuration: {e}", exc_info=True)
-            return False
+            raise Exception(f"Error loading configuration: {e}") from e
     
-    def load_menu_config(self, menu_config_path: str) -> bool:
+    def _load_menu_config(self) -> None:
         """
         Load the menu configuration from the specified file.
         
-        Args:
-            menu_config_path: Path to the menu configuration file
-            
-        Returns:
-            bool: True if menu configuration was loaded successfully, False otherwise
+        Raises:
+            FileNotFoundError: If the menu configuration file doesn't exist
+            Exception: If there's an error loading the menu configuration
         """
+        # Get menu config path from main config
+        paths_config = self.get("paths", {})
+        menu_config_path = paths_config.get("menu_config", "./config/menu.toml")
+        
+        if not os.path.exists(menu_config_path):
+            logging.error(f"Menu configuration file not found: {menu_config_path}")
+            raise FileNotFoundError(f"Menu configuration file not found: {menu_config_path}")
+            
         try:
-            if not os.path.exists(menu_config_path):
-                logging.error(f"Menu configuration file not found: {menu_config_path}")
-                return False
-                
             logging.info(f"Loading menu configuration from {menu_config_path}")
             self.menu_config = toml.load(menu_config_path)
             
@@ -89,14 +93,12 @@ class Config:
             for section in sections:
                 subsections = self.get_menu_subsections(section)
                 logging.debug("Section %s has subsections: %s", section, subsections)
-            
-            return True
-            
+                
         except Exception as e:
             logging.error(f"Error loading menu configuration: {e}", exc_info=True)
-            return False
+            raise Exception(f"Error loading menu configuration: {e}") from e
     
-    def get(self, key_path: str, default: Any = None) -> Any:
+    def get(self, key_path: str, default: object = None) -> object:
         """
         Get a configuration value by its dot-notation path.
         
@@ -118,7 +120,7 @@ class Config:
                 
         return current
     
-    def get_file_tags(self) -> List[str]:
+    def get_file_tags(self) -> list[str]:
         """
         Get the list of file tags from the configuration.
         
@@ -127,7 +129,7 @@ class Config:
         """
         return self.get("file_tags", ["orig", "thumb", "v2", "v3", "v4", "v5", "up2", "up3", "up4", "up6"])
     
-    def get_menu_item(self, section: str, subsection: Optional[str] = None) -> Dict[str, Any]:
+    def get_menu_item(self, section: str, subsection: str | None = None) -> dict[str, object]:
         """
         Get a menu item from the menu configuration.
         
@@ -157,7 +159,7 @@ class Config:
         logging.warning("Subsection %s not found in section %s", subsection, section)
         return {}
     
-    def get_menu_sections(self) -> List[str]:
+    def get_menu_sections(self) -> list[str]:
         """
         Get the list of top-level menu sections.
         
@@ -177,7 +179,7 @@ class Config:
         logging.debug("Found sections: %s", sections)
         return sections
     
-    def get_menu_subsections(self, section: str) -> List[str]:
+    def get_menu_subsections(self, section: str) -> list[str]:
         """
         Get the subsections for a menu section.
         

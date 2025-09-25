@@ -145,11 +145,11 @@ class Interview:
         if not getattr(self.config, "openrouter_base_url", None):
             logging.error("OPENROUTER_BASE_URL environment variable is not set")
             raise ValueError("OPENROUTER_BASE_URL environment variable is not set")
-        if not getattr(self.config, "openrouter_model", None):
+        if not getattr(self.config, "openrouter_model_vision", None):
             logging.error("OPENROUTER_MODEL environment variable is not set")
             raise ValueError("OPENROUTER_MODEL environment variable is not set")
 
-        logging.info("Creating OpenAI client for model: %s", self.config.openrouter_model)
+        logging.info("Creating OpenAI client for model: %s", self.config.openrouter_model_vision)
 
         # If your OpenRouter account requires headers like HTTP-Referer/X-Title,
         # you can add them via default_headers=... here.
@@ -241,7 +241,7 @@ class Interview:
                 # OpenRouter hint below is okay to keep; won’t break OpenAI SDK.
                 extra_body={"provider": {"require_parameters": True}},
                 response_model=InterviewResults,
-                model=self.config.openrouter_model,
+                model=self.config.openrouter_model_vision,
             )
 
             # Instructor returns a parsed instance (not the raw OpenAI object)
@@ -388,7 +388,8 @@ if __name__ == "__main__":
 
     # Example image
     # image_file = r"E:\fooocus\images\new\2025-08-03_tmp\2025-08-03_00-05-54_8875\2025-08-03_00-05-54_8875_orig.png"
-    image_file = r"E:\fooocus\images\new\2025-08-05\2025-08-05_00-29-53_7332\2025-08-05_00-29-53_7332_orig.png"
+    image_file = r"C:\Users\bradf\Downloads\2025-09-15 - Never Trust the Living Crow\2025-09-15 - Never Trust the Living Crow_orig.jpg"
+    # image_file = r"C:\Users\bradf\Downloads\2025-09-15 - Never Trust the Living Moth\2025-09-15 - Never Trust the Living Moth_orig.jpg"
 
     interview = Interview(config=config, image_file=image_file)
     try:
@@ -397,11 +398,11 @@ if __name__ == "__main__":
         interview.save_raw_interview()
         interview.save_text_interview()
 
-        interview.parse_interview()
+        #interview.parse_interview()
         # Pretty-print the structured result
-        print("Interview results (JSON):")
-        print(interview.interview_parsed.model_dump_json(indent=2))
-        interview.save_json_interview()
+        #print("Interview results (JSON):")
+        #print(interview.interview_parsed.model_dump_json(indent=2))
+        #interview.save_json_interview()
         # interview.save_all_files()
 
     except Exception as e:
