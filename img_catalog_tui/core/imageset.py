@@ -172,8 +172,15 @@ class Imageset():
             logging.debug(f"exif source: {metadata.source}")
             logging.debug(f"exif data: {metadata.data}")
             
-            self.toml.set(key="source", value=metadata.source)
-            self.toml.set(section=metadata.source, value=metadata.data)
+            # Set the source at top level
+            if metadata.source:
+                self.toml.set(key="source", value=metadata.source)
+                # Only create a section if we have a valid source name
+                self.toml.set(section=metadata.source, value=metadata.data)
+            else:
+                # No specific source detected, store as other data
+                self.toml.set(key="source", value="other")
+                self.toml.set(section="other", value=metadata.data)
             
     def get_file_orig(self) -> str | None:
         """Get the first file in the self.files dict that contains '_orig' in its filename."""
@@ -297,13 +304,9 @@ class Imageset():
             
             # Execute the complete interview workflow
             interview.interview_image()
-            interview.save_raw_interview()
-            interview.save_text_interview()
-            interview.parse_interview()
-            interview.save_json_interview()
             
             logging.info(f"Interview process completed for imageset: {self.imageset_name}")
-            return interview.save_text_interview()
+            return interview.interview_parsed
             
         except Exception as e:
             logging.error(f"Error during interview process: {e}", exc_info=True)
@@ -454,11 +457,10 @@ class Imageset():
 if __name__ == "__main__":
     
     config = Config()
-    config.load()
     setup_logging()
     
-    folder = r"E:\fooocus\images\new\2025-08-03_tmp"
-    imageset_name = "2025-08-03_00-00-23_7134"
+    folder = r"C:\Users\bradf\Downloads"
+    imageset_name = "2025-09-05 - raven and forest double image"
     #imageset_name = "aardvark_fike_1920s_prohibition_era_photograph_black_and_whit_bc61cf96-45c3-4c65-9740-f61756ffcbd9_0"
     
     imageset = Imageset(config=config, folder_name=folder, imageset_name=imageset_name)

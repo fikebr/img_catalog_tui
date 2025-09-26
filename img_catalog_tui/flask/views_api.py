@@ -1,5 +1,5 @@
 import logging
-from flask import jsonify, render_template
+from flask import jsonify, request
 
 from img_catalog_tui.config import Config
 
@@ -8,7 +8,6 @@ from img_catalog_tui.core.folder import ImagesetFolder
 from img_catalog_tui.core.imageset import Imageset
 
 config = Config()
-config.load()
 
 
     
@@ -91,6 +90,50 @@ def imageset(foldername: str, imageset: str):
         return jsonify({"error": f"Folder path not found: {foldername}"}), 404
     except Exception as e:
         logging.error(f"Error processing imageset {imageset} in folder {foldername}: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+
+def folders_add(folder_path: str):
+    """Add a new folder to the collection."""
+    try:
+        # Validate request method
+        if request.method != 'POST':
+            return jsonify({"error": "Method not allowed"}), 405
+            
+        # Add folder using Folders class
+        folders_obj = Folders()
+        success = folders_obj.add(folder_path)
+        
+        if success:
+            logging.info(f"Successfully added folder: {folder_path}")
+            return jsonify({"message": "Folder added successfully", "folder_path": folder_path}), 201
+        else:
+            return jsonify({"error": "Failed to add folder"}), 400
+            
+    except Exception as e:
+        logging.error(f"Error adding folder: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+
+def folders_delete(foldername: str):
+    """Remove a folder from the collection."""
+    try:
+        # Validate request method
+        if request.method != 'DELETE':
+            return jsonify({"error": "Method not allowed"}), 405
+            
+        # Delete folder using Folders class
+        folders_obj = Folders()
+        success = folders_obj.delete(foldername)
+        
+        if success:
+            logging.info(f"Successfully deleted folder: {foldername}")
+            return jsonify({"message": "Folder deleted successfully", "folder_name": foldername}), 200
+        else:
+            return jsonify({"error": f"Folder '{foldername}' not found or failed to delete"}), 404
+            
+    except Exception as e:
+        logging.error(f"Error deleting folder {foldername}: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
 
 

@@ -15,7 +15,6 @@ if logger is None:
 
 # Load configuration once at startup
 config = Config()
-config.load()
 
 app = Flask(__name__)
 

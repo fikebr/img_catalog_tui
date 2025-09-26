@@ -8,13 +8,21 @@ from img_catalog_tui.core.folders import Folders
 from img_catalog_tui.core.folder import ImagesetFolder
 
 config = Config()
-config.load()
 
 def index() -> str:
     try:
         return render_template('index.html', title="Image Catalog TUI", message="Welcome to the Image Catalog!")
     except Exception as e:
         logging.error(f"Error in index endpoint: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+def folders() -> str:
+    """Return the folders management HTML page."""
+    try:
+        return render_template('folders.html', title="Folder Management")
+    except Exception as e:
+        logging.error(f"Error in folders endpoint: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
 
 

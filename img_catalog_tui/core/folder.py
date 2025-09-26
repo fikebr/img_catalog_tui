@@ -193,7 +193,6 @@ class ImagesetFolder:
 if __name__ == "__main__":
     
     config = Config()
-    config.load()
     setup_logging()
     
     foldername = r"E:\\fooocus\\images\\new\\2025-08-03_tmp"
