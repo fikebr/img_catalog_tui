@@ -8,6 +8,7 @@ def register_routes(app):
     # routes to serve html
     app.add_url_rule('/', endpoint='index', view_func=views_html.index)
     app.add_url_rule('/folders', endpoint='folders', view_func=views_html.folders)
+    app.add_url_rule('/folder/<string:foldername>', endpoint='folder', view_func=views_html.folder) 
     app.add_url_rule('/folder/<string:foldername>/review/<string:review_type>', endpoint='reviews', view_func=views_html.reviews)
 
     # utility routes

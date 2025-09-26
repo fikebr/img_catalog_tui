@@ -461,10 +461,9 @@
             });
         }
         
-        // View folder (placeholder for future implementation)
+        // View folder - navigate to folder details page
         function viewFolder(folderName) {
-            // For now, just show an alert. This could be extended to navigate to folder details
-            alert(`Viewing folder: ${folderName}\n\nThis feature will be implemented in the future to show folder contents and statistics.`);
+            window.location.href = `/folder/${encodeURIComponent(folderName)}`;
         }
         
         // Message display functions

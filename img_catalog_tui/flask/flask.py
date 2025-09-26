@@ -1,6 +1,7 @@
 """Simple Flask application boilerplate."""
 
 import logging
+import os
 from flask import Flask
 
 from img_catalog_tui.logger import setup_logging
@@ -18,6 +19,13 @@ config = Config()
 
 app = Flask(__name__)
 
+# Add custom Jinja2 filters
+@app.template_filter('basename')
+def basename_filter(path):
+    """Extract basename from file path."""
+    if path:
+        return os.path.basename(path)
+    return ""
 
 urls.register_routes(app)
 

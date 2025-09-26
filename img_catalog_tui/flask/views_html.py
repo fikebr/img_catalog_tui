@@ -76,6 +76,46 @@ def _get_imagesets_for_review_type(foldername: str, review_type: str, folders_ob
 
 
 
+def folder(foldername: str) -> str:
+    """Return the folder HTML page for a specific folder."""
+    try:
+        logging.debug(f"folder endpoint: folder={foldername}")
+        
+        # Validate foldername exists in Folders registry
+        folders_obj = Folders()
+        if foldername not in folders_obj.folders:
+            logging.warning(f"Folder '{foldername}' not found in registry")
+            return render_template('folder.html', 
+                                 title="Folder Details", 
+                                 foldername=foldername,
+                                 folder_data={},
+                                 error=f"Folder '{foldername}' not found"), 404
+        
+        # Get folder data with detailed imageset information
+        folder_path = folders_obj.folders[foldername]
+        folder_obj = ImagesetFolder(config=config, foldername=folder_path)
+        
+        # Create enhanced folder data with imageset details
+        folder_data = {
+            'foldername': folder_obj.foldername,
+            'imageset_count': len(folder_obj.imagesets),
+            'imagesets': {}
+        }
+        
+        # Add detailed imageset information
+        for imageset_name, imageset_obj in folder_obj.imagesets.items():
+            folder_data['imagesets'][imageset_name] = imageset_obj.to_dict()
+        
+        return render_template('folder.html', 
+                             title=f"Folder: {foldername}", 
+                             foldername=foldername,
+                             folder_data=folder_data)
+                             
+    except Exception as e:
+        logging.error(f"Error in folder endpoint: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+
 def health() -> tuple[dict, int]:
     """Return health status of the application."""
     try:
