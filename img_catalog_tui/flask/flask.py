@@ -17,7 +17,7 @@ if logger is None:
 # Load configuration once at startup
 config = Config()
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 
 # Add custom Jinja2 filters
 @app.template_filter('basename')

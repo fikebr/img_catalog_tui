@@ -10,6 +10,7 @@ def register_routes(app):
     app.add_url_rule('/folders', endpoint='folders', view_func=views_html.folders)
     app.add_url_rule('/folder/<string:foldername>', endpoint='folder', view_func=views_html.folder) 
     app.add_url_rule('/folder/<string:foldername>/review/<string:review_type>', endpoint='reviews', view_func=views_html.reviews)
+    app.add_url_rule('/folder/<string:foldername>/batch_update', endpoint='batch_update_form', view_func=views_html.batch_update_form)
 
     # utility routes
     app.add_url_rule('/health', endpoint='health', view_func=views_html.health)
@@ -28,10 +29,13 @@ def register_routes(app):
     
     
     app.add_url_rule('/api/folder/<string:foldername>', endpoint='api_folder', view_func=views_api.folder)
+    app.add_url_rule('/api/folder/<string:foldername>/batch_update', endpoint='api_batch_update', view_func=views_api.batch_update, methods=['POST'])
+    
+    
     app.add_url_rule('/api/imageset/<string:foldername>/<string:imageset>', endpoint='api_imageset', view_func=views_api.imageset)
     
     app.add_url_rule('/api/folder/<string:foldername>/review/new', endpoint='api_review_new', view_func=views_api.review_new)
+    
 
-    # TODO: api routes for changing status, edits, needs
     # TODO: api routes for performing an interview
     # TODO: api routes for reviews: new->working, 

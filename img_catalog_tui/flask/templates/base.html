@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Image Catalog TUI{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <div class="shell">
+        <header>
+            <div class="header-content">
+                <div class="header-title">
+                    <h1>{% block page_title %}{{ title or "Image Catalog TUI" }}{% endblock %}</h1>
+                </div>
+                <nav class="nav-links">
+                    {% block navigation %}
+                    <a href="/">Home</a>
+                    <a href="/folders">Folders</a>
+                    {% endblock %}
+                </nav>
+            </div>
+        </header>
+        
+        <main>
+            {% block content %}{% endblock %}
+        </main>
+        
+        <footer>
+            <div class="container">
+                <p>&copy; 2024 Image Catalog TUI - {% block footer_text %}Management System{% endblock %}</p>
+            </div>
+        </footer>
+    </div>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block navigation %}
+    <a href="/">Home</a>
+    <a href="/folders">Folders</a>
+    <a href="/folder/{{ foldername }}">{{ foldername }}</a>
+{% endblock %}
+
+{% block content %}
+{% if error %}
+    <div class="error-message">{{ error }}</div>
+{% endif %}
+
+{% if not error and folder_data %}
+<div class="section">
+    <h2 class="section-title">Batch Update Settings</h2>
+    <form id="batchUpdateForm">
+        <div class="form-group">
+            <label for="update_type">Update Type:</label>
+            <select id="update_type" name="update_type" required>
+                <option value="">Select update type...</option>
+                <option value="status">Status</option>
+                <option value="edits">Edits</option>
+                <option value="needs">Needs</option>
+                <option value="good_for">Good For</option>
+                <option value="posted_to">Posted To</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label for="value">Value:</label>
+            <select id="value" name="value" required disabled>
+                <option value="">Select update type first...</option>
+            </select>
+        </div>
+    </form>
+</div>
+
+<div class="section">
+    <h2 class="section-title">Select Imagesets ({{ folder_data.imageset_count }} total)</h2>
+    
+    <div style="margin-bottom: var(--space-md); display: flex; gap: var(--space-sm); flex-wrap: wrap;">
+        <button type="button" class="btn" onclick="selectAll()">Select All</button>
+        <button type="button" class="btn" onclick="selectNone()">Select None</button>
+        <button type="button" class="btn" onclick="selectByStatus()">Select by Status</button>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-md); max-height: 400px; overflow-y: auto; border: 1px solid var(--border); padding: var(--space-md); background: var(--muted); border-radius: var(--radius-lg);">
+        {% for imageset_name, imageset_data in folder_data.imagesets.items() %}
+        <div style="padding: var(--space-md); border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface);">
+            <label style="display: flex; align-items: flex-start; gap: var(--space-sm); cursor: pointer;">
+                <input type="checkbox" name="imagesets" value="{{ imageset_name }}" class="imageset-checkbox" style="margin-top: 2px;">
+                <div style="flex: 1;">
+                    <strong style="color: var(--accent);">{{ imageset_name }}</strong>
+                    <div style="font-size: 0.75rem; color: var(--text); opacity: 0.7; margin-top: var(--space-xs); line-height: 1.4;">
+                        Status: {{ imageset_data.status or 'None' }}<br>
+                        Edits: {{ imageset_data.edits or 'None' }}<br>
+                        Needs: {{ imageset_data.needs or 'None' }}<br>
+                        Good For: {{ imageset_data.good_for or 'None' }}<br>
+                        Posted To: {{ imageset_data.posted_to or 'None' }}
+                    </div>
+                </div>
+            </label>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="text-center" style="margin-top: var(--space-xl);">
+    <button type="button" class="btn btn-primary" onclick="submitBatchUpdate()">Update Selected Imagesets</button>
+    <button type="button" class="btn btn-secondary" onclick="window.location.href='/folder/{{ foldername }}'">Cancel</button>
+</div>
+
+<div id="resultMessage" style="margin-top: var(--space-md); padding: var(--space-md); border-radius: var(--radius-lg); display: none;"></div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Configuration options from backend
+    const configOptions = {{ config_options | safe }};
+    const foldername = "{{ foldername }}";
+
+        // Update value dropdown based on selected update type
+        document.getElementById('update_type').addEventListener('change', function() {
+            const updateType = this.value;
+            const valueSelect = document.getElementById('value');
+            
+            // Clear existing options
+            valueSelect.innerHTML = '<option value="">Select value...</option>';
+            
+            if (updateType && configOptions[updateType]) {
+                valueSelect.disabled = false;
+                configOptions[updateType].forEach(option => {
+                    const optionElement = document.createElement('option');
+                    optionElement.value = option;
+                    optionElement.textContent = option;
+                    valueSelect.appendChild(optionElement);
+                });
+            } else {
+                valueSelect.disabled = true;
+            }
+        });
+
+        // Selection control functions
+        function selectAll() {
+            const checkboxes = document.querySelectorAll('.imageset-checkbox');
+            checkboxes.forEach(cb => cb.checked = true);
+        }
+
+        function selectNone() {
+            const checkboxes = document.querySelectorAll('.imageset-checkbox');
+            checkboxes.forEach(cb => cb.checked = false);
+        }
+
+        function selectByStatus() {
+            const status = prompt('Enter status to select (e.g., new, keep, edit, working, posted, archive):');
+            if (status) {
+                const checkboxes = document.querySelectorAll('.imageset-checkbox');
+                checkboxes.forEach(cb => {
+                    const item = cb.closest('.imageset-item');
+                    const details = item.querySelector('.imageset-details').textContent;
+                    cb.checked = details.includes(`Status: ${status}`);
+                });
+            }
+        }
+
+        // Submit batch update
+        async function submitBatchUpdate() {
+            const updateType = document.getElementById('update_type').value;
+            const value = document.getElementById('value').value;
+            const selectedImagesets = Array.from(document.querySelectorAll('.imageset-checkbox:checked'))
+                .map(cb => cb.value);
+
+            // Validation
+            if (!updateType) {
+                showResult('Please select an update type.', 'error');
+                return;
+            }
+            if (!value) {
+                showResult('Please select a value.', 'error');
+                return;
+            }
+            if (selectedImagesets.length === 0) {
+                showResult('Please select at least one imageset.', 'error');
+                return;
+            }
+
+            // Confirm action
+            if (!confirm(`Update ${selectedImagesets.length} imagesets with ${updateType} = "${value}"?`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/folder/${foldername}/batch_update`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        update_type: updateType,
+                        value: value,
+                        imagesets: selectedImagesets
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    if (result.failed_count > 0) {
+                        showResult(
+                            `Batch update completed with partial success: ${result.successful_count} successful, ${result.failed_count} failed. Failed imagesets: ${result.failed_imagesets.join(', ')}`,
+                            'warning'
+                        );
+                    } else {
+                        showResult(
+                            `Batch update successful! Updated ${result.successful_count} imagesets with ${result.update_type} = "${result.value}".`,
+                            'success'
+                        );
+                        // Optionally refresh the page after successful update
+                        setTimeout(() => window.location.reload(), 2000);
+                    }
+                } else {
+                    showResult(`Error: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                showResult(`Network error: ${error.message}`, 'error');
+            }
+        }
+
+        // Show result message
+        function showResult(message, type) {
+            const resultDiv = document.getElementById('resultMessage');
+            resultDiv.textContent = message;
+            resultDiv.className = `result-message result-${type}`;
+            resultDiv.style.display = 'block';
+            
+            // Scroll to result message
+            resultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+</script>
+{% endblock %}

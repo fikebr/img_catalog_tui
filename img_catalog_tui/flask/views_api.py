@@ -6,6 +6,7 @@ from img_catalog_tui.config import Config
 from img_catalog_tui.core.folders import Folders
 from img_catalog_tui.core.folder import ImagesetFolder
 from img_catalog_tui.core.imageset import Imageset
+from img_catalog_tui.core.imageset_batch_update import ImagesetBatch
 
 config = Config()
 
@@ -134,6 +135,94 @@ def folders_delete(foldername: str):
             
     except Exception as e:
         logging.error(f"Error deleting folder {foldername}: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+
+def batch_update(foldername: str):
+    """Batch update imagesets with specified field and value."""
+    try:
+        # Validate request method
+        if request.method != 'POST':
+            return jsonify({"error": "Method not allowed"}), 405
+        
+        # Get JSON data from request
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No JSON data provided"}), 400
+        
+        # Validate required fields
+        required_fields = ['update_type', 'value', 'imagesets']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"Missing required field: {field}"}), 400
+        
+        update_type = data['update_type']
+        value = data['value']
+        imagesets = data['imagesets']
+        
+        # Validate imagesets is a list
+        if not isinstance(imagesets, list):
+            return jsonify({"error": "imagesets must be a list"}), 400
+        
+        if not imagesets:
+            return jsonify({"error": "imagesets list cannot be empty"}), 400
+        
+        # Get folder path from Folders registry
+        folders_obj = Folders()
+        if foldername not in folders_obj.folders:
+            logging.warning(f"Folder '{foldername}' not found in registry")
+            return jsonify({"error": f"Folder '{foldername}' not found"}), 404
+        
+        folder_path = folders_obj.folders[foldername]
+        
+        # Create ImagesetBatch object and perform update
+        batch_updater = ImagesetBatch(
+            config=config,
+            folder=folder_path,
+            update_type=update_type,
+            imagesets=imagesets,
+            value=value
+        )
+        
+        error_imagesets = batch_updater.update_now()
+        
+        # Prepare response
+        total_imagesets = len(imagesets)
+        successful_count = total_imagesets - len(error_imagesets)
+        
+        response_data = {
+            "message": "Batch update completed",
+            "total_imagesets": total_imagesets,
+            "successful_count": successful_count,
+            "failed_count": len(error_imagesets),
+            "failed_imagesets": error_imagesets,
+            "update_type": update_type,
+            "value": value
+        }
+        
+        # Return appropriate status code based on results
+        if error_imagesets:
+            if successful_count == 0:
+                # All failed
+                logging.error(f"Batch update failed for all imagesets in folder '{foldername}'")
+                return jsonify(response_data), 500
+            else:
+                # Partial success
+                logging.warning(f"Batch update partially failed for folder '{foldername}': {len(error_imagesets)} failures")
+                return jsonify(response_data), 207  # Multi-Status
+        else:
+            # All successful
+            logging.info(f"Batch update successful for all {total_imagesets} imagesets in folder '{foldername}'")
+            return jsonify(response_data), 200
+        
+    except ValueError as e:
+        logging.error(f"Validation error in batch update: {e}")
+        return jsonify({"error": str(e)}), 400
+    except FileNotFoundError as e:
+        logging.error(f"File not found in batch update: {e}")
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        logging.error(f"Error in batch update for folder {foldername}: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
 
 

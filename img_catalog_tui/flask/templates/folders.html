@@ -1,278 +1,20 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }}</title>
-    <style>
-        :root {
-            --bg: #0f172a;
-            --surface: #111827;
-            --muted: #1f2937;
-            --border: #334155;
-            --text: #e5e7eb;
-            --accent: #60a5fa;
-            --accent-2: #22d3ee;
-            --good: #34d399;
-            --bad: #f87171;
-            --warning: #fbbf24;
-        }
-        
-        * {
-            box-sizing: border-box;
-        }
-        
-        html, body {
-            height: 100%;
-        }
-        
-        body {
-            margin: 0;
-            background: linear-gradient(180deg, var(--bg), #020617);
-            color: var(--text);
-            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
-        }
-        
-        .shell {
-            min-height: 100%;
-            display: grid;
-            grid-template-rows: auto 1fr auto;
-        }
-        
-        header, footer {
-            border-block: 1px solid var(--border);
-            background: rgba(255, 255, 255, 0.02);
-            backdrop-filter: blur(6px);
-        }
-        
-        header {
-            position: sticky;
-            top: 0;
-            z-index: 50;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin-inline: auto;
-            padding: 16px 20px;
-        }
-        
-        h1 {
-            margin: 0;
-            font-size: clamp(24px, 3vw, 32px);
-            letter-spacing: 0.3px;
-        }
-        
-        main {
-            padding: 32px 20px;
-            max-width: 1200px;
-            margin: 0 auto;
-            width: 100%;
-        }
-        
-        .section {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 24px;
-            margin-bottom: 32px;
-        }
-        
-        .section h2 {
-            margin: 0 0 20px 0;
-            color: var(--accent);
-            font-size: 20px;
-        }
-        
-        .form-group {
-            margin-bottom: 20px;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: var(--text);
-        }
-        
-        .form-input {
-            width: 100%;
-            max-width: 600px;
-            padding: 12px 16px;
-            background: var(--muted);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text);
-            font-size: 16px;
-        }
-        
-        .form-input:focus {
-            outline: none;
-            border-color: var(--accent);
-            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
-        }
-        
-        .btn {
-            appearance: none;
-            border: 1px solid var(--border);
-            background: rgba(255, 255, 255, 0.04);
-            color: var(--text);
-            padding: 12px 24px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 16px;
-            transition: all 0.2s;
-            margin-right: 12px;
-        }
-        
-        .btn:hover {
-            background: rgba(255, 255, 255, 0.08);
-        }
-        
-        .btn.primary {
-            border-color: transparent;
-            background: linear-gradient(90deg, var(--accent), var(--accent-2));
-            color: #0b1220;
-        }
-        
-        .btn.primary:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(96, 165, 250, 0.3);
-        }
-        
-        .btn.danger {
-            background: linear-gradient(90deg, var(--bad), #ef4444);
-            color: #7f1d1d;
-            border-color: transparent;
-        }
-        
-        .btn.danger:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(248, 113, 113, 0.3);
-        }
-        
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-        
-        .folders-grid {
-            display: grid;
-            gap: 16px;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-        }
-        
-        .folder-card {
-            background: var(--muted);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 20px;
-            transition: all 0.2s;
-        }
-        
-        .folder-card:hover {
-            border-color: var(--accent);
-            transform: translateY(-2px);
-        }
-        
-        .folder-name {
-            font-weight: 600;
-            color: var(--accent);
-            margin-bottom: 8px;
-            font-size: 18px;
-        }
-        
-        .folder-path {
-            color: var(--text);
-            opacity: 0.7;
-            font-size: 14px;
-            margin-bottom: 16px;
-            word-break: break-all;
-        }
-        
-        .folder-actions {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: var(--accent);
-        }
-        
-        .error {
-            text-align: center;
-            padding: 40px;
-            color: var(--bad);
-        }
-        
-        .success {
-            background: rgba(52, 211, 153, 0.1);
-            border: 1px solid var(--good);
-            color: var(--good);
-            padding: 16px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: none;
-        }
-        
-        .error-message {
-            background: rgba(248, 113, 113, 0.1);
-            border: 1px solid var(--bad);
-            color: var(--bad);
-            padding: 16px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: none;
-        }
-        
-        .nav-links {
-            display: flex;
-            gap: 16px;
-            margin-bottom: 32px;
-            flex-wrap: wrap;
-        }
-        
-        .nav-link {
-            background: var(--muted);
-            color: var(--text);
-            text-decoration: none;
-            padding: 12px 20px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            transition: all 0.2s;
-            font-weight: 500;
-        }
-        
-        .nav-link:hover {
-            background: var(--accent);
-            color: #0b1220;
-            transform: translateY(-1px);
-        }
-    </style>
-</head>
-<body>
-    <div class="shell">
-        <header>
-            <div class="container">
-                <h1>{{ title }}</h1>
-            </div>
-        </header>
+{% extends "base.html" %}
 
-        <main>
-            <div class="nav-links">
-                <a href="/" class="nav-link">← Home</a>
-                <a href="/health" class="nav-link">Health Check</a>
-            </div>
+{% block title %}{{ title }}{% endblock %}
 
-            <!-- Add Folder Section -->
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block navigation %}
+    <a href="/">← Home</a>
+    <a href="/health">Health Check</a>
+{% endblock %}
+
+{% block content %}
+<!-- Add Folder Section -->
             <div class="section">
                 <h2>Add New Folder</h2>
-                <div class="success" id="addSuccess"></div>
-                <div class="error-message" id="addError"></div>
+                <div class="message-success" id="addSuccess"></div>
+                <div class="message-error" id="addError"></div>
                 
                 <form id="addFolderForm">
                     <div class="form-group">
@@ -283,7 +25,7 @@
                                placeholder="C:\Path\To\Your\Image\Folder"
                                required>
                     </div>
-                    <button type="submit" class="btn primary" id="addBtn">
+                    <button type="submit" class="btn btn-primary" id="addBtn">
                         Add Folder
                     </button>
                 </form>
@@ -291,23 +33,17 @@
 
             <!-- Existing Folders Section -->
             <div class="section">
-                <h2>Existing Folders</h2>
-                <div class="error-message" id="listError"></div>
+                <h2 class="section-title">Existing Folders</h2>
+                <div class="message-error" id="listError"></div>
                 
                 <div id="foldersContainer">
                     <div class="loading" id="loadingMessage">Loading folders...</div>
                     <div class="folders-grid" id="foldersGrid" style="display: none;"></div>
                 </div>
             </div>
-        </main>
+{% endblock %}
 
-        <footer>
-            <div class="container">
-                <small>© <span id="year"></span> Image Catalog TUI</small>
-            </div>
-        </footer>
-    </div>
-
+{% block scripts %}
     <script>
         const $ = (selector, root = document) => root.querySelector(selector);
         const API_BASE = '/api';
@@ -324,17 +60,26 @@
         
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
-            $('#year').textContent = new Date().getFullYear();
+            console.log('DOM loaded, starting to load folders...');
+            console.log('Elements found:', {
+                loadingMessage: !!loadingMessage,
+                foldersGrid: !!foldersGrid,
+                addSuccess: !!addSuccess,
+                addError: !!addError,
+                listError: !!listError
+            });
             loadFolders();
         });
         
         // Load existing folders
         async function loadFolders() {
             try {
+                console.log('Starting to load folders...');
                 loadingMessage.style.display = 'block';
                 foldersGrid.style.display = 'none';
                 listError.style.display = 'none';
                 
+                console.log('Fetching from:', `${API_BASE}/folders`);
                 const response = await fetch(`${API_BASE}/folders`);
                 
                 if (!response.ok) {
@@ -342,6 +87,7 @@
                 }
                 
                 const folders = await response.json();
+                console.log('Folders received:', folders);
                 displayFolders(folders);
                 
             } catch (error) {
@@ -354,34 +100,50 @@
         
         // Display folders in grid
         function displayFolders(folders) {
+            console.log('displayFolders called with:', folders);
             foldersGrid.innerHTML = '';
             
             if (!folders || Object.keys(folders).length === 0) {
+                console.log('No folders found');
                 foldersGrid.innerHTML = '<div class="error">No folders found. Add some folders to get started!</div>';
             } else {
+                console.log('Creating folder cards for:', Object.keys(folders));
                 for (const [folderName, folderPath] of Object.entries(folders)) {
+                    console.log('Creating card for:', folderName, folderPath);
                     const folderCard = createFolderCard(folderName, folderPath);
                     foldersGrid.appendChild(folderCard);
                 }
             }
             
+            console.log('Setting foldersGrid display to grid');
             foldersGrid.style.display = 'grid';
+            console.log('Final foldersGrid innerHTML length:', foldersGrid.innerHTML.length);
         }
         
         // Create folder card element
         function createFolderCard(folderName, folderPath) {
-            const card = document.createElement('div');
-            card.className = 'folder-card';
-            card.innerHTML = `
-                <div class="folder-name">${escapeHtml(folderName)}</div>
-                <div class="folder-path">${escapeHtml(folderPath)}</div>
-                <div class="folder-actions">
-                    <button class="btn" onclick="copyPath('${escapeHtml(folderPath)}')">Copy Path</button>
-                    <button class="btn" onclick="viewFolder('${escapeHtml(folderName)}')">View Folder</button>
-                    <button class="btn danger" onclick="deleteFolder('${escapeHtml(folderName)}')">Delete</button>
-                </div>
-            `;
-            return card;
+            console.log('Creating folder card for:', folderName, folderPath);
+            try {
+                const card = document.createElement('div');
+                card.className = 'folder-card';
+                card.innerHTML = `
+                    <div class="folder-name">${escapeHtml(folderName)}</div>
+                    <div class="folder-path">${escapeHtml(folderPath)}</div>
+                    <div class="folder-actions">
+                        <button class="btn btn-secondary" onclick="copyPath('${escapeHtml(folderPath)}')">Copy Path</button>
+                        <button class="btn btn-primary" onclick="viewFolder('${escapeHtml(folderName)}')">View Folder</button>
+                        <button class="btn btn-danger" onclick="deleteFolder('${escapeHtml(folderName)}')">Delete</button>
+                    </div>
+                `;
+                console.log('Card created successfully for:', folderName);
+                return card;
+            } catch (error) {
+                console.error('Error creating folder card:', error);
+                const errorCard = document.createElement('div');
+                errorCard.className = 'folder-card';
+                errorCard.innerHTML = `<div class="error">Error creating card for ${folderName}</div>`;
+                return errorCard;
+            }
         }
         
         // Add folder form handler
@@ -471,6 +233,7 @@
             addSuccess.textContent = message;
             addSuccess.style.display = 'block';
             addError.style.display = 'none';
+            setTimeout(() => hideMessages(), 5000); // Auto-hide after 5 seconds
         }
         
         function showAddError(message) {
@@ -497,5 +260,4 @@
             return div.innerHTML;
         }
     </script>
-</body>
-</html>
+{% endblock %}

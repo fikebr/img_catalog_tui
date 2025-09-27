@@ -1,433 +1,124 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }}</title>
-    <style>
-        :root {
-            --bg: #0f172a;
-            --surface: #111827;
-            --muted: #1f2937;
-            --border: #334155;
-            --text: #e5e7eb;
-            --accent: #60a5fa;
-            --accent-2: #22d3ee;
-            --good: #34d399;
-            --bad: #f87171;
-            --warning: #fbbf24;
-        }
-        
-        * {
-            box-sizing: border-box;
-        }
-        
-        html, body {
-            height: 100%;
-        }
-        
-        body {
-            margin: 0;
-            background: linear-gradient(180deg, var(--bg), #020617);
-            color: var(--text);
-            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
-        }
-        
-        .shell {
-            min-height: 100%;
-            display: grid;
-            grid-template-rows: auto 1fr auto;
-        }
-        
-        header, footer {
-            border-block: 1px solid var(--border);
-            background: rgba(255, 255, 255, 0.02);
-            backdrop-filter: blur(6px);
-        }
-        
-        header {
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            padding: 1rem 2rem;
-        }
-        
-        .header-content {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        
-        .header-title {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        
-        .header-title h1 {
-            margin: 0;
-            font-size: 1.5rem;
-            font-weight: 600;
-        }
-        
-        .nav-links {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-        
-        .nav-links a {
-            color: var(--accent);
-            text-decoration: none;
-            padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
-            transition: background-color 0.2s;
-        }
-        
-        .nav-links a:hover {
-            background-color: var(--muted);
-        }
-        
-        main {
-            padding: 2rem;
-            max-width: 1400px;
-            margin: 0 auto;
-            width: 100%;
-        }
-        
-        .folder-info {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 0.5rem;
-            padding: 1.5rem;
-            margin-bottom: 2rem;
-        }
-        
-        .folder-path {
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            background: var(--muted);
-            padding: 0.5rem;
-            border-radius: 0.25rem;
-            margin-bottom: 1rem;
-            word-break: break-all;
-        }
-        
-        .folder-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-        
-        .stat-item {
-            background: var(--muted);
-            padding: 1rem;
-            border-radius: 0.375rem;
-            text-align: center;
-        }
-        
-        .stat-value {
-            font-size: 2rem;
-            font-weight: bold;
-            color: var(--accent);
-        }
-        
-        .stat-label {
-            font-size: 0.875rem;
-            color: var(--text);
-            opacity: 0.8;
-        }
-        
-        .imagesets-section {
-            margin-top: 2rem;
-        }
-        
-        .section-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        
-        .imagesets-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 1.5rem;
-        }
-        
-        .imageset-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 0.5rem;
-            padding: 1.5rem;
-            transition: border-color 0.2s, transform 0.2s;
-        }
-        
-        .imageset-card:hover {
-            border-color: var(--accent);
-            transform: translateY(-2px);
-        }
-        
-        .imageset-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: start;
-            margin-bottom: 1rem;
-        }
-        
-        .imageset-name {
-            font-weight: 600;
-            font-size: 1.1rem;
-            margin: 0;
-            color: var(--accent);
-        }
-        
-        .imageset-status {
-            padding: 0.25rem 0.75rem;
-            border-radius: 1rem;
-            font-size: 0.75rem;
-            font-weight: 500;
-            text-transform: uppercase;
-        }
-        
-        .status-new {
-            background: rgba(251, 191, 36, 0.2);
-            color: var(--warning);
-        }
-        
-        .status-working {
-            background: rgba(96, 165, 250, 0.2);
-            color: var(--accent);
-        }
-        
-        .status-edit {
-            background: rgba(248, 113, 113, 0.2);
-            color: var(--bad);
-        }
-        
-        .status-posted {
-            background: rgba(52, 211, 153, 0.2);
-            color: var(--good);
-        }
-        
-        .imageset-details {
-            display: grid;
-            gap: 0.75rem;
-        }
-        
-        .detail-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid var(--border);
-        }
-        
-        .detail-row:last-child {
-            border-bottom: none;
-        }
-        
-        .detail-label {
-            font-size: 0.875rem;
-            color: var(--text);
-            opacity: 0.8;
-        }
-        
-        .detail-value {
-            font-weight: 500;
-            text-align: right;
-            max-width: 60%;
-            word-break: break-word;
-        }
-        
-        .file-count {
-            color: var(--accent);
-        }
-        
-        .no-imagesets {
-            text-align: center;
-            padding: 3rem;
-            color: var(--text);
-            opacity: 0.6;
-        }
-        
-        .error-message {
-            background: rgba(248, 113, 113, 0.1);
-            border: 1px solid var(--bad);
-            color: var(--bad);
-            padding: 1rem;
-            border-radius: 0.5rem;
-            margin-bottom: 2rem;
-        }
-        
-        footer {
-            padding: 1rem 2rem;
-            text-align: center;
-            color: var(--text);
-            opacity: 0.6;
-            font-size: 0.875rem;
-        }
-        
-        .imageset-actions {
-            margin-top: 1rem;
-            display: flex;
-            gap: 0.5rem;
-        }
-        
-        .btn {
-            padding: 0.375rem 0.75rem;
-            border-radius: 0.25rem;
-            text-decoration: none;
-            font-size: 0.875rem;
-            font-weight: 500;
-            border: 1px solid var(--border);
-            transition: all 0.2s;
-        }
-        
-        .btn-primary {
-            background: var(--accent);
-            color: white;
-            border-color: var(--accent);
-        }
-        
-        .btn-primary:hover {
-            background: rgba(96, 165, 250, 0.8);
-        }
-        
-        .btn-secondary {
-            background: transparent;
-            color: var(--accent);
-            border-color: var(--accent);
-        }
-        
-        .btn-secondary:hover {
-            background: rgba(96, 165, 250, 0.1);
-        }
-    </style>
-</head>
-<body>
-    <div class="shell">
-        <header>
-            <div class="header-content">
-                <div class="header-title">
-                    <h1>{{ title }}</h1>
-                </div>
-                <nav class="nav-links">
-                    <a href="/">Home</a>
-                    <a href="/folders">Folders</a>
-                    {% if not error %}
-                    <a href="/folder/{{ foldername }}/review/new">Review New</a>
-                    {% endif %}
-                </nav>
-            </div>
-        </header>
-        
-        <main>
-            {% if error %}
-                <div class="error-message">
-                    {{ error }}
-                </div>
-            {% else %}
-                <div class="folder-info">
-                    <h2>Folder Information</h2>
-                    <div class="folder-path">{{ folder_data.foldername }}</div>
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block navigation %}
+    <a href="/">Home</a>
+    <a href="/folders">Folders</a>
+    {% if not error %}
+    <a href="/folder/{{ foldername }}/review/new">Review New</a>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+{% if error %}
+    <div class="error-message">
+        {{ error }}
+    </div>
+{% else %}
+    <div class="section">
+        <h2 class="section-title">Folder Information</h2>
+        <div class="folder-path" style="font-family: var(--font-mono); background: var(--muted); padding: var(--space-sm); border-radius: var(--radius-sm); margin-bottom: var(--space-md); word-break: break-all;">{{ folder_data.foldername }}</div>
                     
-                    <div class="folder-stats">
-                        <div class="stat-item">
-                            <div class="stat-value">{{ folder_data.imageset_count }}</div>
-                            <div class="stat-label">Total Imagesets</div>
+        <div class="grid grid-2" style="margin-top: var(--space-md);">
+            <div class="card">
+                <div class="card-content text-center">
+                    <div style="font-size: 2rem; font-weight: bold; color: var(--accent);">{{ folder_data.imageset_count }}</div>
+                    <div style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">Total Imagesets</div>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-content text-center">
+                    <div style="font-size: 2rem; font-weight: bold; color: var(--accent);">
+                        {% set new_count = namespace(value=0) %}
+                        {% for imageset_name, imageset in folder_data.imagesets.items() %}
+                            {% if imageset.status == "new" or imageset.status == "" %}
+                                {% set new_count.value = new_count.value + 1 %}
+                            {% endif %}
+                        {% endfor %}
+                        {{ new_count.value }}
+                    </div>
+                    <div style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">New Imagesets</div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid var(--border);">
+            <a href="/folder/{{ foldername }}/batch_update" class="btn btn-primary">
+                🔄 Batch Update Imagesets
+            </a>
+        </div>
+    </div>
+                
+    <div class="section">
+        <h2 class="section-title">
+            📁 Imagesets
+        </h2>
+        
+        {% if folder_data.imagesets %}
+            <div class="imagesets-grid">
+                {% for imageset_name, imageset in folder_data.imagesets.items() %}
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 style="margin: 0; color: var(--accent); font-size: 1.1rem;">{{ imageset_name }}</h3>
+                            <span class="status status-{{ imageset.status or 'new' }}">
+                                {{ imageset.status or 'new' }}
+                            </span>
                         </div>
-                        <div class="stat-item">
-                            <div class="stat-value">
-                                {% set new_count = namespace(value=0) %}
-                                {% for imageset_name, imageset in folder_data.imagesets.items() %}
-                                    {% if imageset.status == "new" or imageset.status == "" %}
-                                        {% set new_count.value = new_count.value + 1 %}
-                                    {% endif %}
-                                {% endfor %}
-                                {{ new_count.value }}
+                                    
+                        <div class="card-content">
+                            <div style="display: grid; gap: var(--space-sm);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-xs) 0; border-bottom: 1px solid var(--border);">
+                                    <span style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">Files</span>
+                                    <span style="font-weight: 500; color: var(--accent);">{{ imageset.files|length }}</span>
+                                </div>
+                                
+                                {% if imageset.source %}
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-xs) 0; border-bottom: 1px solid var(--border);">
+                                    <span style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">Source</span>
+                                    <span style="font-weight: 500; text-align: right; max-width: 60%; word-break: break-word;">{{ imageset.source }}</span>
+                                </div>
+                                {% endif %}
+                                
+                                {% if imageset.edits %}
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-xs) 0; border-bottom: 1px solid var(--border);">
+                                    <span style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">Edits</span>
+                                    <span style="font-weight: 500; text-align: right; max-width: 60%; word-break: break-word;">{{ imageset.edits }}</span>
+                                </div>
+                                {% endif %}
+                                
+                                {% if imageset.needs %}
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-xs) 0; border-bottom: 1px solid var(--border);">
+                                    <span style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">Needs</span>
+                                    <span style="font-weight: 500; text-align: right; max-width: 60%; word-break: break-word;">{{ imageset.needs }}</span>
+                                </div>
+                                {% endif %}
+                                
+                                {% if imageset.posted_to %}
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-xs) 0;">
+                                    <span style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">Posted To</span>
+                                    <span style="font-weight: 500; text-align: right; max-width: 60%; word-break: break-word;">{{ imageset.posted_to }}</span>
+                                </div>
+                                {% endif %}
                             </div>
-                            <div class="stat-label">New Imagesets</div>
+                        </div>
+                        
+                        <div class="card-footer">
+                            <a href="/api/imageset/{{ foldername }}/{{ imageset_name }}" class="btn btn-secondary" target="_blank">API Data</a>
+                            {% if imageset.cover_image %}
+                            <a href="/images/{{ foldername }}/{{ imageset_name }}/{{ imageset.cover_image | basename }}" class="btn btn-primary" target="_blank">View Cover</a>
+                            {% endif %}
                         </div>
                     </div>
-                </div>
-                
-                <div class="imagesets-section">
-                    <h2 class="section-title">
-                        📁 Imagesets
-                    </h2>
-                    
-                    {% if folder_data.imagesets %}
-                        <div class="imagesets-grid">
-                            {% for imageset_name, imageset in folder_data.imagesets.items() %}
-                                <div class="imageset-card">
-                                    <div class="imageset-header">
-                                        <h3 class="imageset-name">{{ imageset_name }}</h3>
-                                        <span class="imageset-status status-{{ imageset.status or 'new' }}">
-                                            {{ imageset.status or 'new' }}
-                                        </span>
-                                    </div>
-                                    
-                                    <div class="imageset-details">
-                                        <div class="detail-row">
-                                            <span class="detail-label">Files</span>
-                                            <span class="detail-value file-count">{{ imageset.files|length }}</span>
-                                        </div>
-                                        
-                                        {% if imageset.source %}
-                                        <div class="detail-row">
-                                            <span class="detail-label">Source</span>
-                                            <span class="detail-value">{{ imageset.source }}</span>
-                                        </div>
-                                        {% endif %}
-                                        
-                                        {% if imageset.edits %}
-                                        <div class="detail-row">
-                                            <span class="detail-label">Edits</span>
-                                            <span class="detail-value">{{ imageset.edits }}</span>
-                                        </div>
-                                        {% endif %}
-                                        
-                                        {% if imageset.needs %}
-                                        <div class="detail-row">
-                                            <span class="detail-label">Needs</span>
-                                            <span class="detail-value">{{ imageset.needs }}</span>
-                                        </div>
-                                        {% endif %}
-                                        
-                                        {% if imageset.posted_to %}
-                                        <div class="detail-row">
-                                            <span class="detail-label">Posted To</span>
-                                            <span class="detail-value">{{ imageset.posted_to }}</span>
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                    
-                                    <div class="imageset-actions">
-                                        <a href="/api/imageset/{{ foldername }}/{{ imageset_name }}" class="btn btn-secondary" target="_blank">API Data</a>
-                                        {% if imageset.cover_image %}
-                                        <a href="/images/{{ foldername }}/{{ imageset_name }}/{{ imageset.cover_image | basename }}" class="btn btn-primary" target="_blank">View Cover</a>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            {% endfor %}
-                        </div>
-                    {% else %}
-                        <div class="no-imagesets">
-                            <p>No imagesets found in this folder.</p>
-                        </div>
-                    {% endif %}
-                </div>
-            {% endif %}
-        </main>
-        
-        <footer>
-            <p>&copy; 2024 Image Catalog TUI - Folder Management System</p>
-        </footer>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center" style="padding: var(--space-2xl); color: var(--text); opacity: 0.6;">
+                <p>No imagesets found in this folder.</p>
+            </div>
+        {% endif %}
     </div>
-</body>
-</html>
+{% endif %}
+{% endblock %}

@@ -161,3 +161,61 @@ def serve_image(foldername: str, imageset_name: str, filename: str):
     except Exception as e:
         logging.error(f"Error serving image {foldername}/{imageset_name}/{filename}: {e}", exc_info=True)
         abort(500)
+
+
+def batch_update_form(foldername: str) -> str:
+    """Return the batch update form HTML page for a specific folder."""
+    try:
+        logging.debug(f"batch_update_form endpoint: folder={foldername}")
+        
+        # Validate foldername exists in Folders registry
+        folders_obj = Folders()
+        if foldername not in folders_obj.folders:
+            logging.warning(f"Folder '{foldername}' not found in registry")
+            return render_template('batch_update.html', 
+                                 title="Batch Update", 
+                                 foldername=foldername,
+                                 folder_data={},
+                                 config_options={},
+                                 error=f"Folder '{foldername}' not found"), 404
+        
+        # Get folder data with imagesets
+        folder_path = folders_obj.folders[foldername]
+        folder_obj = ImagesetFolder(config=config, foldername=folder_path)
+        
+        # Create folder data for the template
+        folder_data = {
+            'foldername': folder_obj.foldername,
+            'imageset_count': len(folder_obj.imagesets),
+            'imagesets': {}
+        }
+        
+        # Add imageset information with basic details
+        for imageset_name, imageset_obj in folder_obj.imagesets.items():
+            folder_data['imagesets'][imageset_name] = {
+                'name': imageset_name,
+                'status': imageset_obj.status,
+                'edits': imageset_obj.edits,
+                'needs': imageset_obj.needs,
+                'good_for': imageset_obj.good_for,
+                'posted_to': imageset_obj.posted_to
+            }
+        
+        # Get configuration options for form dropdowns
+        config_options = {
+            'status': config.config_data.get('status', []),
+            'edits': config.config_data.get('edits', []),
+            'needs': config.config_data.get('needs', []),
+            'good_for': config.config_data.get('good_for', []),
+            'posted_to': config.config_data.get('posted_to', [])
+        }
+        
+        return render_template('batch_update.html', 
+                             title=f"Batch Update: {foldername}", 
+                             foldername=foldername,
+                             folder_data=folder_data,
+                             config_options=config_options)
+                             
+    except Exception as e:
+        logging.error(f"Error in batch_update_form endpoint: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500

@@ -1,118 +1,45 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ title }}</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            line-height: 1.6;
-            margin: 0;
-            padding: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block navigation %}
+    <a href="/folders">Manage Folders</a>
+    <a href="/api/folders">View Folders (API)</a>
+    <a href="/health">Health Check</a>
+{% endblock %}
+
+{% block content %}
+<style>
+    /* Override main layout for landing page */
+    main {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 60vh;
+    }
+</style>
+
+<div class="container text-center">
+    <div class="section">
+        <h2 class="section-title">{{ title }}</h2>
+        <p style="font-size: 1.1rem; margin-bottom: 2rem; color: var(--text); opacity: 0.8;">{{ message }}</p>
         
-        .container {
-            background: white;
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            text-align: center;
-            max-width: 600px;
-            width: 90%;
-        }
-        
-        h1 {
-            color: #333;
-            margin-bottom: 1rem;
-            font-size: 2.5rem;
-        }
-        
-        p {
-            color: #666;
-            font-size: 1.1rem;
-            margin-bottom: 2rem;
-        }
-        
-        .nav-links {
-            display: flex;
-            gap: 1rem;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        
-        .nav-link {
-            background: #667eea;
-            color: white;
-            text-decoration: none;
-            padding: 0.8rem 1.5rem;
-            border-radius: 5px;
-            transition: background 0.3s ease;
-            font-weight: 500;
-        }
-        
-        .nav-link:hover {
-            background: #5a6fd8;
-        }
-        
-        .api-section {
-            margin-top: 2rem;
-            padding-top: 2rem;
-            border-top: 1px solid #eee;
-        }
-        
-        .api-section h2 {
-            color: #333;
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
-        }
-        
-        .api-endpoints {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            align-items: center;
-        }
-        
-        .api-endpoint {
-            background: #f8f9fa;
-            padding: 0.5rem 1rem;
-            border-radius: 5px;
-            font-family: 'Monaco', 'Consolas', monospace;
-            color: #495057;
-            text-decoration: none;
-            transition: background 0.3s ease;
-        }
-        
-        .api-endpoint:hover {
-            background: #e9ecef;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>{{ title }}</h1>
-        <p>{{ message }}</p>
-        
-        <div class="nav-links">
+        <div class="nav-links mb-5">
             <a href="/folders" class="nav-link">Manage Folders</a>
             <a href="/api/folders" class="nav-link">View Folders (API)</a>
             <a href="/health" class="nav-link">Health Check</a>
         </div>
         
-        <div class="api-section">
-            <h2>API Endpoints</h2>
-            <div class="api-endpoints">
-                <a href="/api/folders" class="api-endpoint">GET /folders</a>
-                <a href="/health" class="api-endpoint">GET /health</a>
-                <span class="api-endpoint">GET /folder/&lt;foldername&gt;</span>
+        <div class="api-section" style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
+            <h3 style="color: var(--accent); font-size: 1.25rem; margin-bottom: 1rem;">API Endpoints</h3>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: center;">
+                <a href="/api/folders" class="btn btn-secondary">GET /api/folders</a>
+                <a href="/health" class="btn btn-secondary">GET /health</a>
+                <span class="btn" style="cursor: default;">GET /api/folder/&lt;foldername&gt;</span>
             </div>
         </div>
     </div>
-</body>
-</html>
+</div>
+{% endblock %}
