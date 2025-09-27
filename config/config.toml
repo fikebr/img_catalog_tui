@@ -5,7 +5,7 @@ file_tags = ["orig", "thumb", "v2", "v3", "v4", "v5", "up2", "up3", "up4", "up6"
 img_file_ext = ["png", "jpg", "jpeg", "bmp"]
 
 # selection options
-status = ["new", "keep", "edit", "working", "posted"]
+status = ["new", "keep", "edit", "working", "posted", "archive"]
 edits = ["creative", "photoshop", "rmbg"]
 needs = ["upscale", "vector", "orig", "thumbnail", "interview"]
 good_for = ["stock", "rb", "poster"]

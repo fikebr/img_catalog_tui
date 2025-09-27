@@ -38,6 +38,10 @@ class ImagesetToml:
                     with open(self.toml_file, 'rb') as f:
                         self._data = tomllib.load(f)
                     logging.debug(f"Loaded existing TOML file: {self.toml_file}")
+                    
+                    # Ensure all required keys exist with default values
+                    self._ensure_required_keys()
+                    
                 except UnicodeDecodeError as ude:
                     logging.warning(f"UTF-8 decode error in {self.toml_file}: {ude}")
                     # Try to read with different encodings
@@ -57,6 +61,9 @@ class ImagesetToml:
                             self._data = tomllib.loads(content)
                             logging.info(f"Successfully loaded TOML file with {encoding} encoding after cleanup: {self.toml_file}")
                             
+                            # Ensure all required keys exist with default values
+                            self._ensure_required_keys()
+                            
                             # Rewrite the file with proper UTF-8 encoding
                             with open(self.toml_file, 'wb') as f:
                                 tomli_w.dump(self._data, f)
@@ -72,7 +79,12 @@ class ImagesetToml:
                         backup_file = f"{self.toml_file}.backup"
                         os.rename(self.toml_file, backup_file)
                         logging.info(f"Backed up corrupted file to: {backup_file}")
-                        self._data = {"imageset": self.imageset_name}
+                        self._data = {
+                            "imageset": self.imageset_name,
+                            "status": "new",
+                            "edits": "",
+                            "needs": ""
+                        }
                         with open(self.toml_file, 'wb') as f:
                             tomli_w.dump(self._data, f)
                         logging.info(f"Created new TOML file with default data: {self.toml_file}")
@@ -92,6 +104,41 @@ class ImagesetToml:
         except Exception as e:
             logging.error(f"Error validating TOML file {self.toml_file}: {e}")
             raise
+    
+    def _ensure_required_keys(self) -> None:
+        """Ensures all required keys exist in the TOML data with default values."""
+        default_values = {
+            "imageset": self.imageset_name,
+            "status": "new",
+            "edits": "",
+            "needs": ""
+        }
+        
+        keys_added = []
+        for key, default_value in default_values.items():
+            if key not in self._data:
+                self._data[key] = default_value
+                keys_added.append(key)
+        
+        # Handle source detection based on sections
+        if "source" not in self._data:
+            self._data["source"] = "unknown"
+            keys_added.append("source")
+        
+        # If source is unknown and we have fooocus or midjourney sections, update source
+        if self._data.get("source") == "unknown":
+            if "fooocus" in self._data:
+                self._data["source"] = "fooocus"
+                logging.info(f"Set source to 'fooocus' based on fooocus section in: {self.toml_file}")
+            elif "midjourney" in self._data:
+                self._data["source"] = "midjourney"
+                logging.info(f"Set source to 'midjourney' based on midjourney section in: {self.toml_file}")
+        
+        # Save the file if any keys were added or source was updated
+        if keys_added or self._data.get("source") in ["fooocus", "midjourney"]:
+            with open(self.toml_file, 'wb') as f:
+                tomli_w.dump(self._data, f)
+            logging.info(f"Added missing keys {keys_added} to TOML file: {self.toml_file}")
     
     def get(self, section: str="", key: str="") -> dict | str:
         """Retrieves data from a specific section or returns all data."""

@@ -408,9 +408,9 @@
                                     </div>
                                     
                                     <div class="imageset-actions">
-                                        <a href="/api/imageset/{{ foldername }}/{{ imageset_name }}" class="btn btn-secondary">API Data</a>
-                                        {% if imageset.cover %}
-                                        <a href="/images/{{ foldername }}/{{ imageset_name }}/{{ imageset.cover | basename }}" class="btn btn-primary" target="_blank">View Cover</a>
+                                        <a href="/api/imageset/{{ foldername }}/{{ imageset_name }}" class="btn btn-secondary" target="_blank">API Data</a>
+                                        {% if imageset.cover_image %}
+                                        <a href="/images/{{ foldername }}/{{ imageset_name }}/{{ imageset.cover_image | basename }}" class="btn btn-primary" target="_blank">View Cover</a>
                                         {% endif %}
                                     </div>
                                 </div>

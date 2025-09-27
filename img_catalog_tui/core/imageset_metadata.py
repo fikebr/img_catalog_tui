@@ -112,7 +112,13 @@ class ImagesetMetaData:
                 raise RuntimeError(f"Error parsing Midjourney metadata: {e}") from e
 
     
-    def _validate_filename(self, imagefile: str) -> str:
+    def _validate_filename(self, imagefile: str | None) -> str:
+        if imagefile is None:
+            raise ValueError("Image file path cannot be None")
+        
+        if not isinstance(imagefile, (str, bytes, os.PathLike)):
+            raise TypeError(f"Image file path must be string, bytes, or PathLike, not {type(imagefile)}")
+            
         if not os.path.exists(imagefile):
             raise FileExistsError(f"Image file not found: {imagefile}")
         

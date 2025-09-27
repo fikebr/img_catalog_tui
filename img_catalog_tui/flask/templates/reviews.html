@@ -117,7 +117,7 @@
               <span class="title">{{ imageset_name }}</span>
             </div>
             <div class="card-content">
-              {% set cover_image = imageset_data.cover.split('\\')[-1].split('/')[-1] if imageset_data.cover else none %}
+              {% set cover_image = imageset_data.cover_image.split('\\')[-1].split('/')[-1] if imageset_data.cover_image else none %}
               {% if not cover_image and imageset_data.files %}
                 {% set orig_files = [] %}
                 {% for filename, file_info in imageset_data.files.items() %}
@@ -280,8 +280,8 @@
     // Function to copy a Windows path
     function copyWindowsPath(btn) {
       const folderPath = btn.dataset.folder;
-      const imagesetName = btn.dataset.imageset;
-      const path = joinWinPath(folderPath, imagesetName);
+      // Use the folder path directly since it already contains the full path to the imageset
+      const path = folderPath.replace(/\//g, '\\');
       navigator.clipboard.writeText(path).then(() => {
         showToast('Copied path');
       }).catch(err => {

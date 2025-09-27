@@ -21,48 +21,20 @@ class Imageset():
         self.imageset_folder = self._get_imageset_folder()
         self.toml = ImagesetToml(imageset_folder=self.imageset_folder)
         self.files = self._get_imageset_files() # dict{filename: dict{fullpath, ext, tags}}
-        self._status = "new" # new, edit, working, posted
-        self._edits = "" # creative, photoshop, rmbg
-        self._needs = "" # upscale, vector, orig, thumbnail, interview
 
         self.get_exif_data()
         
-    def to_dict(self):
-        
-        biz = self.toml.get("biz")
-        source_data = self.toml.get("source")
-        source = source_data if isinstance(source_data, str) else ""
-        source_section = {}
-        
-        if source:
-            source_section = self.toml.get(source)
-            
-        prompt = ""
-        
-        if source_section and isinstance(source_section, dict):
-            prompt = source_section.get("prompt", "")
-            
-        data = {
-            "imageset_name": self.imageset_name,
-            "imageset_folder": self.imageset_folder,
-            "status": self.status,
-            "edits": self.edits,
-            "needs": self.needs,
-            "posted_to": biz.get("posted_to", "") if isinstance(biz, dict) else "",
-            "prompt": prompt,
-            "source": source,
-            "files": self.files,
-            "cover": self.cover
-        }
-        
-        if biz:
-            data["biz"] = biz
-        
-        return data
 
-
+    ### properties and setters
+    # cover_image
+    # orig_image
+    # edits
+    # status
+    # needs
+    
+    
     @property
-    def cover(self) -> str:
+    def cover_image(self) -> str:
         """Return the full path to a cover image for this imageset."""
         
         try:
@@ -116,15 +88,91 @@ class Imageset():
             return ""
 
     @property
+    def orig_image(self) -> str:
+        """Find and return the original image file, tagging it if necessary."""
+        
+        try:
+            # Get valid image file extensions from config
+            img_file_ext = self.config.config_data.get("img_file_ext", [])
+            
+            # Get all image files from the files dict
+            image_files = []
+            for filename, file_info in self.files.items():
+                file_ext = file_info["ext"].lower().lstrip('.')
+                if file_ext in [ext.lower() for ext in img_file_ext]:
+                    image_files.append({
+                        "filename": filename,
+                        "fullpath": file_info["fullpath"],  
+                        "tags": file_info["tags"]
+                    })
+            
+            # If no image files found, throw an error
+            if not image_files:
+                error_msg = f"No image files found in imageset: {self.imageset_name}"
+                logging.error(error_msg)
+                raise FileNotFoundError(error_msg)
+            
+            # Find files with 'orig' tag
+            orig_files = [f for f in image_files if "orig" in f["tags"]]
+            
+            # Case 1: If there is only one image file that has the orig tag
+            if len(orig_files) == 1:
+                logging.debug(f"Found single orig file: {orig_files[0]['filename']}")
+                return orig_files[0]["fullpath"]
+            
+            # Case 2: If there are multiple files with orig tag, look for one with only orig tag
+            elif len(orig_files) > 1:
+                single_orig_files = [f for f in orig_files if len(f["tags"]) == 1 and f["tags"][0] == "orig"]
+                if len(single_orig_files) == 1:
+                    logging.debug(f"Found orig file with single tag: {single_orig_files[0]['filename']}")
+                    return single_orig_files[0]["fullpath"]
+                else:
+                    # Just return the first orig file if we can't find one with only orig tag
+                    logging.warning(f"Multiple orig files found, returning first: {orig_files[0]['filename']}")
+                    return orig_files[0]["fullpath"]
+            
+            # Case 3: No orig files found - need to determine and tag original
+            else:
+                # Case 3a: If there is only one image file, tag it as orig
+                if len(image_files) == 1:
+                    file_to_tag = image_files[0]
+                    logging.info(f"Single image file found, tagging as orig: {file_to_tag['filename']}")
+                    new_filename = self.add_tag_to_file(file_to_tag["filename"], "orig")
+                    return os.path.join(self.imageset_folder, new_filename)
+                
+                # Case 3b: Multiple files - look for one with no tags
+                else:
+                    untagged_files = [f for f in image_files if len(f["tags"]) == 0]
+                    if len(untagged_files) == 1:
+                        file_to_tag = untagged_files[0]
+                        logging.info(f"Found untagged file, tagging as orig: {file_to_tag['filename']}")
+                        new_filename = self.add_tag_to_file(file_to_tag["filename"], "orig")
+                        return os.path.join(self.imageset_folder, new_filename)
+                    
+                    # If no untagged files or multiple untagged files, return first image file
+                    else:
+                        logging.warning(f"Could not determine orig file automatically, returning first image: {image_files[0]['filename']}")
+                        return image_files[0]["fullpath"]
+            
+        except Exception as e:
+            logging.error(f"Error finding orig image: {e}", exc_info=True)
+            raise
+
+
+    @property
     def edits(self) -> str:
         return self.toml.get(key="edits")
         
-    # TODO: in the setter functions for edits, status, and needs enforce the selection option from config data
-    # TODO: implement setter\getters for good_for & posted_to
-    
     @edits.setter
     def edits(self, value: str) -> None:
-        self._edits = value
+        """Set the edits value after validating against config options."""
+        # Validate value against config
+        valid_edits = self.config.config_data.get("edits", [])
+        if value and value not in valid_edits:
+            error_msg = f"Invalid edits value '{value}'. Valid options are: {', '.join(valid_edits)}"
+            logging.error(error_msg)
+            raise ValueError(error_msg)
+        
         self.toml.set(key="edits", value=value)
 
     @property
@@ -133,7 +181,14 @@ class Imageset():
     
     @status.setter
     def status(self, value: str) -> None:
-        self._status = value
+        """Set the status value after validating against config options."""
+        # Validate value against config
+        valid_status = self.config.config_data.get("status", [])
+        if value and value not in valid_status:
+            error_msg = f"Invalid status value '{value}'. Valid options are: {', '.join(valid_status)}"
+            logging.error(error_msg)
+            raise ValueError(error_msg)
+        
         self.toml.set(key="status", value=value)
 
     @property
@@ -142,13 +197,141 @@ class Imageset():
     
     @needs.setter
     def needs(self, value: str) -> None:
-        self._needs = value
-        self.toml.set(key="needs", value=value)
-
-    def get_orig_file(self):
-        # TODO: is there an orig file. determine\tag orig. return orig file
+        """Set the needs value after validating against config options."""
+        # Validate value against config
+        valid_needs = self.config.config_data.get("needs", [])
+        if value and value not in valid_needs:
+            error_msg = f"Invalid needs value '{value}'. Valid options are: {', '.join(valid_needs)}"
+            logging.error(error_msg)
+            raise ValueError(error_msg)
         
-        pass
+        self.toml.set(key="needs", value=value)
+        
+    @property
+    def good_for(self) -> str:
+        return self.toml.get(key="good_for")
+    
+    @good_for.setter
+    def good_for(self, value: str) -> None:
+        """Set the good_for value after validating against config options."""
+        # Validate value against config
+        valid_good_for = self.config.config_data.get("good_for", [])
+        if value and value not in valid_good_for:
+            error_msg = f"Invalid good_for value '{value}'. Valid options are: {', '.join(valid_good_for)}"
+            logging.error(error_msg)
+            raise ValueError(error_msg)
+        
+        self.toml.set(key="good_for", value=value)
+        
+    
+    @property
+    def posted_to(self) -> str:
+        return self.toml.get(section="biz", key="posted_to")
+
+    @posted_to.setter
+    def posted_to(self, value: str) -> None:
+        """Set the posted_to value after validating against config options."""
+        # Validate value against config
+        valid_posted_to = self.config.config_data.get("posted_to", [])
+        if value and value not in valid_posted_to:
+            error_msg = f"Invalid posted_to value '{value}'. Valid options are: {', '.join(valid_posted_to)}"
+            logging.error(error_msg)
+            raise ValueError(error_msg)
+        
+        self.toml.set(section="biz", key="posted_to", value=value)
+        
+
+
+    ### Methods ###
+    
+    def add_tag_to_file(self, filename: str, tag: str) -> str:
+        """Add a tag to a file by renaming it with the tag embedded in the filename."""
+        
+        try:
+            # Get valid tags from config
+            valid_tags = self.config.get_file_tags()
+            
+            # Validate tag
+            if tag not in valid_tags:
+                error_msg = f"Invalid tag '{tag}'. Valid tags are: {', '.join(valid_tags)}"
+                logging.error(error_msg)
+                raise ValueError(error_msg)
+            
+            # Get full path for file
+            file_path = os.path.join(self.imageset_folder, filename)
+            
+            # Check if file exists
+            if not os.path.isfile(file_path):
+                error_msg = f"File does not exist: {file_path}"
+                logging.error(error_msg)
+                raise FileNotFoundError(error_msg)
+            
+            # Check if filename already has this tag
+            if f"_{tag}_" in filename or f"_{tag}." in filename:
+                error_msg = f"File '{filename}' already has tag '{tag}'"
+                logging.error(error_msg)
+                raise ValueError(error_msg)
+            
+            # Split filename and extension
+            name_part, ext_part = os.path.splitext(filename)
+            
+            # Create new filename with tag
+            new_filename = f"{name_part}_{tag}{ext_part}"
+            new_file_path = os.path.join(self.imageset_folder, new_filename)
+            
+            # Check if target filename already exists
+            if os.path.exists(new_file_path):
+                error_msg = f"Target file already exists: {new_filename}"
+                logging.error(error_msg)
+                raise FileExistsError(error_msg)
+            
+            # Rename the file
+            os.rename(file_path, new_file_path)
+            logging.info(f"Successfully renamed '{filename}' to '{new_filename}' with tag '{tag}'")
+            
+            # Update the files dict to reflect the change
+            self.files = self._get_imageset_files()
+            
+            return new_filename
+            
+        except Exception as e:
+            logging.error(f"Error adding tag '{tag}' to file '{filename}': {e}", exc_info=True)
+            raise
+
+
+    def to_dict(self):
+        
+        biz = self.toml.get("biz")
+        source_data = self.toml.get("source")
+        source = source_data if isinstance(source_data, str) else ""
+        source_section = {}
+        
+        if source:
+            source_section = self.toml.get(source)
+            
+        prompt = ""
+        
+        if source_section and isinstance(source_section, dict):
+            prompt = source_section.get("prompt", "")
+            
+        data = {
+            "imageset_name": self.imageset_name,
+            "imageset_folder": self.imageset_folder,
+            "status": self.status,
+            "edits": self.edits,
+            "needs": self.needs,
+            "posted_to": biz.get("posted_to", "") if isinstance(biz, dict) else "",
+            "prompt": prompt,
+            "source": source,
+            "files": self.files,
+            "cover_image": self.cover_image
+        }
+        
+        if biz:
+            data["biz"] = biz
+        
+        return data
+
         
     def get_exif_data(self):
         """get the exif data and set into self.toml"""
@@ -168,7 +351,14 @@ class Imageset():
         if needs_exif:
             from img_catalog_tui.core.imageset_metadata import ImagesetMetaData
             
-            metadata = ImagesetMetaData(imagefile=self.get_file_orig())
+            orig_file = self.get_file_orig()
+            if orig_file is None:
+                logging.warning(f"No orig file found for imageset {self.imageset_name}, skipping EXIF extraction")
+                # Set default values when no orig file is available
+                self.toml.set(key="source", value="unknown")
+                return
+            
+            metadata = ImagesetMetaData(imagefile=orig_file)
             logging.debug(f"exif source: {metadata.source}")
             logging.debug(f"exif data: {metadata.data}")
             
@@ -266,9 +456,11 @@ class Imageset():
             return None
 
     def has_file_thumb(self) -> bool:
+        # TODO: implement this
         pass
     
     def has_file_toml(self) -> bool:
+        # TODO: implement this
         pass
 
 

@@ -9,7 +9,7 @@ class Folders:
     def __init__(self):
         self.folders_toml_file = self._folders_toml_file()
         self.toml = self._parse_toml()
-        self.folders = self.toml["folders"] # folders["{basename}"] = "full_path"
+        self.folders: dict[str, str] = self.toml["folders"] # folders["{basename}"] = "full_path"
         
     def _folders_toml_file(self) -> Path:
         """Get the absolute path to the folders.toml file."""
