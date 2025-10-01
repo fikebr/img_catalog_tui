@@ -48,6 +48,7 @@ def reviews(foldername: str, review_name: str = "new") -> str:
     """Return the reviews HTML page for a specific folder and review name."""
     try:
         from img_catalog_tui.core.folder_review import create_folder_review
+        title = f"Image Catalog Review: {review_name}"
         
         logging.debug(f"reviews endpoint: folder={foldername}, review_name={review_name}")
         
@@ -56,14 +57,13 @@ def reviews(foldername: str, review_name: str = "new") -> str:
         except Exception as e:
             logging.error(f"Failed to create folder review: {e}")
             return render_template('reviews.html', 
-                                 title="Image Catalog Review", 
+                                 title=title, 
                                  foldername=foldername,
                                  review_type=review_name,
                                  options=[],
                                  imagesets={},
                                  error=str(e)), 404
         
-        title = f"Image Catalog Review: {review_name}"
         
         # Convert imagesets to dict format for template
         imagesets_dict = {}
@@ -75,6 +75,7 @@ def reviews(foldername: str, review_name: str = "new") -> str:
                              foldername=foldername,
                              review_type=review_obj.review_type,
                              options=review_obj.options,
+                             review_obj=review_obj,
                              imagesets=imagesets_dict)
                              
     except Exception as e:

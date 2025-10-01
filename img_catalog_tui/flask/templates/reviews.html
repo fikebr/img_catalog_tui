@@ -274,6 +274,7 @@
             <div style="display: flex; gap: var(--space-xs);">
                 <button id="copy{{ option.title() }}Btn" class="btn" style="padding: var(--space-xs) var(--space-sm); font-size: 0.75rem;">Copy</button>
                 <button id="clear{{ option.title() }}Btn" class="btn" style="padding: var(--space-xs) var(--space-sm); font-size: 0.75rem;">Clear</button>
+                <button id="apply{{ option.title() }}Btn" class="btn" style="padding: var(--space-xs) var(--space-sm); font-size: 0.75rem; background: var(--accent); color: white;">Apply</button>
             </div>
         </div>
         <div class="cart-items" id="{{ option }}Items"></div>
@@ -296,9 +297,11 @@
     const loadingStatusEl = $('#loadingStatus');
 
     // Initialize state object with dynamic options
-    const options = {{ options | tojson }};
+    const reviewOptions = {{ options | tojson }};
+    const reviewType = '{{ review_type }}';
+    const reviewAppend = {{ review_obj.append | tojson }};
     const state = {};
-    options.forEach(option => {
+    reviewOptions.forEach(option => {
         state[option] = [];
     });
 
@@ -333,6 +336,65 @@
       state[cart].forEach(name=>{const orig=cardsEl.querySelector(`.review-card[data-imagesetname="${CSS.escape(name)}"]`);if(orig)orig.hidden=false;});
       state[cart]=[];$('#'+cart+'Items').innerHTML='';
       updateCounts();
+    }
+
+    async function applyCart(cart) {
+      const imagesets = state[cart];
+      if (!imagesets || imagesets.length === 0) {
+        showToast('Empty ' + cart + ' cart');
+        return;
+      }
+
+      try {
+        // Get foldername from the page context
+        const foldername = '{{ foldername }}';
+        
+        // Prepare the API payload
+        const payload = {
+          update_type: reviewType,
+          value: cart,
+          imagesets: imagesets,
+          append: reviewAppend
+        };
+
+        // Make the API call
+        const response = await fetch(`/api/folder/${foldername}/batch_update`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+          // Success - clear the cart without restoring cards to review section
+          // Only restore failed imagesets back to the review section
+          if (result.failed_imagesets && result.failed_imagesets.length > 0) {
+            result.failed_imagesets.forEach(name => {
+              const orig = cardsEl.querySelector(`.review-card[data-imagesetname="${CSS.escape(name)}"]`);
+              if (orig) orig.hidden = false;
+            });
+          }
+          
+          // Clear the cart state and DOM
+          state[cart] = [];
+          $('#' + cart + 'Items').innerHTML = '';
+          updateCounts();
+          
+          const successMsg = result.failed_count > 0 
+            ? `Applied ${result.successful_count}/${result.total_imagesets} (${result.failed_count} failed)`
+            : `Applied ${result.successful_count} imagesets to ${cart}`;
+          showToast(successMsg);
+        } else {
+          // Error response from API
+          showToast(`Apply failed: ${result.error || 'Unknown error'}`);
+        }
+      } catch (error) {
+        console.error('Apply cart error:', error);
+        showToast('Apply failed: Network error');
+      }
     }
 
     function updateCounts() {
@@ -381,13 +443,15 @@
       }
     });
 
-    // Dynamic event listeners for copy and clear buttons
-    options.forEach(option => {
+    // Dynamic event listeners for copy, clear, and apply buttons
+    reviewOptions.forEach(option => {
         const copyBtn = $('#copy' + option.charAt(0).toUpperCase() + option.slice(1) + 'Btn');
         const clearBtn = $('#clear' + option.charAt(0).toUpperCase() + option.slice(1) + 'Btn');
+        const applyBtn = $('#apply' + option.charAt(0).toUpperCase() + option.slice(1) + 'Btn');
         
         if (copyBtn) copyBtn.onclick = () => copyList(option);
         if (clearBtn) clearBtn.onclick = () => clearCart(option);
+        if (applyBtn) applyBtn.onclick = () => applyCart(option);
     });
 
     $('#year').textContent=new Date().getFullYear();

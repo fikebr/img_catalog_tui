@@ -159,6 +159,7 @@ def batch_update(foldername: str):
         update_type = data['update_type']
         value = data['value']
         imagesets = data['imagesets']
+        append = data.get('append', False)  # Optional parameter, defaults to False
         
         # Validate imagesets is a list
         if not isinstance(imagesets, list):
@@ -181,7 +182,8 @@ def batch_update(foldername: str):
             folder=folder_path,
             update_type=update_type,
             imagesets=imagesets,
-            value=value
+            value=value,
+            append=append
         )
         
         error_imagesets = batch_updater.update_now()
