@@ -93,8 +93,6 @@
         flex-direction: column;
         gap: var(--space-md);
         z-index: 40;
-        max-height: calc(100vh - 100px);
-        overflow-y: auto;
     }
     
     .cart {
@@ -105,8 +103,8 @@
         display: flex;
         flex-direction: column;
         gap: var(--space-sm);
-        min-height: 150px;
-        max-height: 300px;
+        min-height: 200px;
+        max-height: 40vh;
         overflow: auto;
     }
     
@@ -250,9 +248,8 @@
             </div>
             <div class="review-card-footer">
                 <div>
-                    {% for option in options %}
-                    <button class="btn option-btn" data-option="{{ option }}">{{ option.title() }}</button>
-                    {% endfor %}
+                    <button class="btn keep keep-btn">Keep</button>
+                    <button class="btn archive archive-btn">Archive</button>
                 </div>
                 <button class="btn copy-path" 
                     data-folder="{{ imageset_data.imageset_folder or '' }}" 
@@ -265,20 +262,29 @@
     {% endif %}
 </section>
 
-<!-- Dynamic Carts based on options -->
+<!-- Carts stacked -->
 <div class="carts">
-    {% for option in options %}
-    <aside class="cart" id="{{ option }}Cart">
+    <aside class="cart" id="keepCart">
         <div class="cart-header">
-            <strong>{{ option.title() }}</strong>
+            <strong>Keep</strong>
             <div style="display: flex; gap: var(--space-xs);">
-                <button id="copy{{ option.title() }}Btn" class="btn" style="padding: var(--space-xs) var(--space-sm); font-size: 0.75rem;">Copy</button>
-                <button id="clear{{ option.title() }}Btn" class="btn" style="padding: var(--space-xs) var(--space-sm); font-size: 0.75rem;">Clear</button>
+                <button id="copyKeepBtn" class="btn" style="padding: var(--space-xs) var(--space-sm); font-size: 0.75rem;">Copy</button>
+                <button id="clearKeepBtn" class="btn" style="padding: var(--space-xs) var(--space-sm); font-size: 0.75rem;">Clear</button>
             </div>
         </div>
-        <div class="cart-items" id="{{ option }}Items"></div>
+        <div class="cart-items" id="keepItems"></div>
     </aside>
-    {% endfor %}
+
+    <aside class="cart" id="archiveCart">
+        <div class="cart-header">
+            <strong>Archive</strong>
+            <div style="display: flex; gap: var(--space-xs);">
+                <button id="copyArchiveBtn" class="btn" style="padding: var(--space-xs) var(--space-sm); font-size: 0.75rem;">Copy</button>
+                <button id="clearArchiveBtn" class="btn" style="padding: var(--space-xs) var(--space-sm); font-size: 0.75rem;">Clear</button>
+            </div>
+        </div>
+        <div class="cart-items" id="archiveItems"></div>
+    </aside>
 </div>
 
 <div class="toast" id="toast" hidden><div id="toastMsg">Copied!</div></div>
@@ -295,12 +301,7 @@
     const errorEl = $('#errorMessage');
     const loadingStatusEl = $('#loadingStatus');
 
-    // Initialize state object with dynamic options
-    const options = {{ options | tojson }};
-    const state = {};
-    options.forEach(option => {
-        state[option] = [];
-    });
+    const state = {keep:[], archive:[]};
 
     function showToast(msg){toastMsgEl.textContent=msg;toastEl.hidden=false;clearTimeout(showToast.t);showToast.t=setTimeout(()=>toastEl.hidden=true,1200);}
     function getInitials(str){return str.slice(0,2).toUpperCase();}
@@ -342,6 +343,7 @@
       $('#visibleCount').textContent = visible;
     }
 
+
     // Function to open image in new tab
     function openImage(imagesetName, imagePath, foldername) {
       if (!imagePath) return;
@@ -371,24 +373,20 @@
       });
     }
 
+
+
     // Event listeners
     $('.review-content').addEventListener('click',e=>{
       const card=e.target.closest('.review-card');
       if(!card)return;
-      if(e.target.classList.contains('option-btn')){
-        const option = e.target.dataset.option;
-        addToCart(card, option);
-      }
+      if(e.target.classList.contains('keep-btn'))addToCart(card,'keep');
+      if(e.target.classList.contains('archive-btn'))addToCart(card,'archive');
     });
 
-    // Dynamic event listeners for copy and clear buttons
-    options.forEach(option => {
-        const copyBtn = $('#copy' + option.charAt(0).toUpperCase() + option.slice(1) + 'Btn');
-        const clearBtn = $('#clear' + option.charAt(0).toUpperCase() + option.slice(1) + 'Btn');
-        
-        if (copyBtn) copyBtn.onclick = () => copyList(option);
-        if (clearBtn) clearBtn.onclick = () => clearCart(option);
-    });
+    $('#copyKeepBtn').onclick=()=>copyList('keep');
+    $('#clearKeepBtn').onclick=()=>clearCart('keep');
+    $('#copyArchiveBtn').onclick=()=>copyList('archive');
+    $('#clearArchiveBtn').onclick=()=>clearCart('archive');
 
     $('#year').textContent=new Date().getFullYear();
 

@@ -351,7 +351,7 @@ class Imageset():
         if needs_exif:
             from img_catalog_tui.core.imageset_metadata import ImagesetMetaData
             
-            orig_file = self.get_file_orig()
+            orig_file = self.orig_image
             if orig_file is None:
                 logging.warning(f"No orig file found for imageset {self.imageset_name}, skipping EXIF extraction")
                 # Set default values when no orig file is available
@@ -372,22 +372,6 @@ class Imageset():
                 self.toml.set(key="source", value="other")
                 self.toml.set(section="other", value=metadata.data)
             
-    def get_file_orig(self) -> str | None:
-        """Get the first file in the self.files dict that contains '_orig' in its filename."""
-        
-        try:
-            for filename, file_info in self.files.items():
-                if "_orig" in filename:
-                    logging.debug(f"Found orig file: {filename}")
-                    return file_info["fullpath"]
-            
-            logging.debug("No orig file found in imageset")
-            return None
-            
-        except Exception as e:
-            logging.error(f"Error finding orig file: {e}", exc_info=True)
-            return None
-        
     def _get_imageset_folder(self):
         if not os.path.exists(self.folder_name):
             logging.error(f"Base folder not found: {self.folder_name}")
@@ -651,11 +635,12 @@ if __name__ == "__main__":
     config = Config()
     setup_logging()
     
-    folder = r"C:\Users\bradf\Downloads"
-    imageset_name = "2025-09-05 - raven and forest double image"
+    folder = r"E:\fooocus\images\new\2025-08-17\_needs creative"
+    imageset_name = "2025-08-17_02-33-34_5812"
     #imageset_name = "aardvark_fike_1920s_prohibition_era_photograph_black_and_whit_bc61cf96-45c3-4c65-9740-f61756ffcbd9_0"
     
     imageset = Imageset(config=config, folder_name=folder, imageset_name=imageset_name)
-    imageset.interview_image()
+    print(imageset.orig_image)
+    # imageset.interview_image()
     
     

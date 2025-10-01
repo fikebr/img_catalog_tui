@@ -1,6 +1,7 @@
 import logging
 import os
-from flask import jsonify, render_template, send_file, abort
+import requests
+from flask import jsonify, render_template, send_file, abort, request
 
 from img_catalog_tui.config import Config
 
@@ -26,53 +27,59 @@ def folders() -> str:
         return jsonify({"error": "Internal server error"}), 500
 
 
-def reviews(foldername: str, review_type: str = "new") -> str:
-    """Return the reviews HTML page for a specific folder and review type."""
+def reviews_list(foldername: str) -> str:
+    """Return the reviews list HTML page showing available review presets for a folder."""
     try:
-        logging.debug(f"reviews endpoint: folder={foldername}, review_type={review_type}")
+        logging.debug(f"reviews_list endpoint: folder={foldername}")
         
-        # Validate foldername exists in Folders registry
-        folders_obj = Folders()
-        if foldername not in folders_obj.folders:
-            logging.warning(f"Folder '{foldername}' not found in registry")
-            return render_template('reviews.html', 
-                                 title="Image Catalog Review", 
-                                 foldername=foldername,
-                                 review_type=review_type,
-                                 imagesets={},
-                                 error=f"Folder '{foldername}' not found"), 404
+        # Get review presets from config
+        presets = config.config_data.get("review_presets", {})
         
-        # Get imagesets based on review_type
-        imagesets = _get_imagesets_for_review_type(foldername, review_type, folders_obj)
-        
-        return render_template('reviews.html', 
-                             title="Image Catalog Review", 
+        return render_template('reviews_list.html', 
                              foldername=foldername,
-                             review_type=review_type,
-                             imagesets=imagesets)
+                             presets=presets)
+                             
     except Exception as e:
-        logging.error(f"Error in reviews endpoint: {e}", exc_info=True)
+        logging.error(f"Error in reviews_list endpoint: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
 
 
-def _get_imagesets_for_review_type(foldername: str, review_type: str, folders_obj: Folders) -> dict:
-    """Get filtered imagesets based on review_type."""
+def reviews(foldername: str, review_name: str = "new") -> str:
+    """Return the reviews HTML page for a specific folder and review name."""
     try:
-        folder_path = folders_obj.folders[foldername]
-        folder_obj = ImagesetFolder(config=config, foldername=folder_path)
+        from img_catalog_tui.core.folder_review import create_folder_review
         
-        # Handle different review types
-        if review_type == "new":
-            return folder_obj.review_new()
-        else:
-            # Future review types will be implemented here
-            # For now, return empty dict for unsupported types
-            logging.warning(f"Unsupported review_type: {review_type}")
-            return {}
-            
+        logging.debug(f"reviews endpoint: folder={foldername}, review_name={review_name}")
+        
+        try:
+            review_obj = create_folder_review(config=config, folder_name=foldername, review_name=review_name)
+        except Exception as e:
+            logging.error(f"Failed to create folder review: {e}")
+            return render_template('reviews.html', 
+                                 title="Image Catalog Review", 
+                                 foldername=foldername,
+                                 review_type=review_name,
+                                 options=[],
+                                 imagesets={},
+                                 error=str(e)), 404
+        
+        title = f"Image Catalog Review: {review_name}"
+        
+        # Convert imagesets to dict format for template
+        imagesets_dict = {}
+        for imageset_name, imageset_obj in review_obj.imagesets.items():
+            imagesets_dict[imageset_name] = imageset_obj.to_dict()
+
+        return render_template('reviews.html', 
+                             title=title, 
+                             foldername=foldername,
+                             review_type=review_obj.review_type,
+                             options=review_obj.options,
+                             imagesets=imagesets_dict)
+                             
     except Exception as e:
-        logging.error(f"Error getting imagesets for review_type {review_type}: {e}", exc_info=True)
-        return {}
+        logging.error(f"Error in reviews endpoint: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
 
 
 
@@ -127,7 +134,7 @@ def health() -> tuple[dict, int]:
 
 
 def serve_image(foldername: str, imageset_name: str, filename: str):
-    """Serve image files from their original filesystem locations."""
+    """Serve files from their original filesystem locations."""
     try:
         # Get folder path from Folders registry
         folders_obj = Folders()
@@ -155,8 +162,18 @@ def serve_image(foldername: str, imageset_name: str, filename: str):
             logging.warning(f"Path is not a file: {image_path}")
             abort(404)
         
-        logging.debug(f"Serving image: {image_path}")
-        return send_file(image_path)
+        logging.debug(f"Serving file: {image_path}")
+        
+        # Determine if this is a text file that should be displayed inline
+        text_extensions = {'.txt', '.toml', '.json', '.md', '.yaml', '.yml', '.log', '.cfg', '.ini', '.py', '.js', '.css', '.html', '.xml', '.csv'}
+        file_extension = os.path.splitext(filename)[1].lower()
+        
+        if file_extension in text_extensions:
+            # Serve text files with inline disposition to display in browser
+            return send_file(image_path, mimetype='text/plain', as_attachment=False)
+        else:
+            # Serve other files (images, etc.) normally
+            return send_file(image_path)
         
     except Exception as e:
         logging.error(f"Error serving image {foldername}/{imageset_name}/{filename}: {e}", exc_info=True)
@@ -218,4 +235,54 @@ def batch_update_form(foldername: str) -> str:
                              
     except Exception as e:
         logging.error(f"Error in batch_update_form endpoint: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+
+def imageset(foldername: str, imageset_name: str) -> str:
+    """Return the imageset HTML page that displays detailed information about a specific imageset."""
+    try:
+        logging.debug(f"imageset endpoint: folder={foldername}, imageset={imageset_name}")
+        
+        # Build the API URL to fetch imageset data
+        # Use request.host_url to get the current host and port
+        api_url = f"{request.host_url}api/imageset/{foldername}/{imageset_name}"
+        
+        # Make request to the API endpoint
+        try:
+            response = requests.get(api_url, timeout=10)
+            if response.status_code == 404:
+                return render_template('imageset.html',
+                                     title="Imageset Not Found",
+                                     foldername=foldername,
+                                     imageset_name=imageset_name,
+                                     imageset_data=None,
+                                     error="Imageset not found"), 404
+            elif response.status_code != 200:
+                logging.error(f"API returned status {response.status_code}: {response.text}")
+                return render_template('imageset.html',
+                                     title="Error",
+                                     foldername=foldername,
+                                     imageset_name=imageset_name,
+                                     imageset_data=None,
+                                     error="Failed to fetch imageset data"), 500
+            
+            imageset_data = response.json()
+            
+        except requests.RequestException as e:
+            logging.error(f"Error fetching imageset data from API: {e}")
+            return render_template('imageset.html',
+                                 title="Error",
+                                 foldername=foldername,
+                                 imageset_name=imageset_name,
+                                 imageset_data=None,
+                                 error="Failed to connect to API"), 500
+        
+        return render_template('imageset.html',
+                             title=f"Imageset: {imageset_name}",
+                             foldername=foldername,
+                             imageset_name=imageset_name,
+                             imageset_data=imageset_data)
+                             
+    except Exception as e:
+        logging.error(f"Error in imageset endpoint: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500

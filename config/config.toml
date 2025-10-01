@@ -7,10 +7,10 @@ img_file_ext = ["png", "jpg", "jpeg", "bmp"]
 # selection options
 status = ["new", "keep", "edit", "working", "posted", "archive"]
 edits = ["creative", "photoshop", "rmbg"]
-needs = ["upscale", "vector", "orig", "thumbnail", "interview"]
+needs = ["upscale", "vector", "orig", "thumbnail", "interview", "creativeup"]
 good_for = ["stock", "rb", "poster"]
 posted_to = ["stock", "rb", "tp", "faa", "etsy"]
-
+review_types = ["status", "edits", "needs", "good_for", "posted_to"]
 
 
 # Logging configuration
@@ -40,3 +40,24 @@ fooocus_exif_field = "PNG:parameters"
 templates_dir = "config/templates"
 menu_config = "config/menu.toml"
 
+# Review presets - predefined combinations of states, review_type, and options
+[review_presets]
+
+[review_presets.new_status_review]
+states = ["new"]
+review_type = "status" 
+options = ["keep", "archive"]
+description = "Review new images for status decisions"
+
+[review_presets.edit_workflow]
+states = ["keep", "edit"]
+review_type = "edits"
+options = ["creative", "photoshop"]
+append = true
+description = "Review images that need editing work"
+
+[review_presets.posting_review]
+states = ["working"]
+review_type = "good_for"
+options = ["stock", "rb", "poster"]
+description = "Review working images for posting decisions"

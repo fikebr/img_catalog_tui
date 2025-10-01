@@ -33,15 +33,15 @@ class ImagesetFolder:
             'imagesets': list(self.imagesets.keys())
         }
         
-    def review_new(self):
-        new_imagesets: dict[str, dict] = {}
-        for imagesetname, imageset in self.imagesets.items():
-            if imageset.status == "new" or imageset.status == "":
-                new_imagesets[imagesetname] = imageset.to_dict()
+    # def review_new(self):
+    #     new_imagesets: dict[str, dict] = {}
+    #     for imagesetname, imageset in self.imagesets.items():
+    #         if imageset.status == "new" or imageset.status == "":
+    #             new_imagesets[imagesetname] = imageset.to_dict()
                 
-        return new_imagesets
+    #     return new_imagesets
 
-    # TODO: implement functions(s) that set status, needs, edits, for a list of imagesets
+    # # TODO: implement functions(s) that set status, needs, edits, for a list of imagesets
 
     def folder_scan(self) -> bool:
         """ Scan a folder for imagesets and process them. """

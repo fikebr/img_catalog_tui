@@ -17,16 +17,24 @@ UpdateType = Literal[
 
 class ImagesetBatch:
     
-    def __init__(self, config: Config, folder: str, update_type: UpdateType, imagesets: list[str], value: str) -> None:
+    def __init__(self, config: Config, folder: str, update_type: UpdateType, imagesets: list[str], value: str, append: bool = False) -> None:
         """Initialize ImagesetBatch for bulk updating imagesets."""
         self.config = config
         self.folder = self._validate_folder(folder)
         self.update_type = update_type
         self.value = self._validate_value(value)
+        self.append = self._validate_append(append)
         self.imagesets: dict[str, Imageset] = self._validate_imagesets(imagesets)
         
         # Log initialization
         logging.info(f"Initializing ImagesetBatch for folder: {folder}, update_type: {update_type}")
+        
+    def _validate_append(self, append: bool) -> bool:
+        
+        if self.update_type == "status":
+            return False
+        
+        return append
         
     def _validate_value(self, value: str) -> str:
         """Validate that value is a valid option for the given update_type."""
@@ -122,31 +130,77 @@ class ImagesetBatch:
         except Exception as e:
             logging.error(f"Error validating imagesets: {e}", exc_info=True)
             raise
+    
+    def _get_current_property_value(self, imageset_obj: Imageset, property_name: str) -> str:
+        """Get the current value of a property from an imageset object."""
+        try:
+            if property_name == "status":
+                return imageset_obj.status or ""
+            elif property_name == "edits":
+                return imageset_obj.edits or ""
+            elif property_name == "needs":
+                return imageset_obj.needs or ""
+            elif property_name == "good_for":
+                return imageset_obj.good_for or ""
+            elif property_name == "posted_to":
+                return imageset_obj.posted_to or ""
+            else:
+                raise ValueError(f"Unsupported property: {property_name}")
+        except Exception as e:
+            logging.warning(f"Error getting current value for {property_name}: {e}")
+            return ""
+    
+    def _get_appended_value(self, current_value: str, new_value: str) -> str:
+        """Handle appending a value to a comma-delimited string if it doesn't already exist."""
+        if not current_value:
+            return new_value
+        
+        # Convert comma-delimited string to list, strip whitespace
+        current_items = [item.strip() for item in current_value.split(',') if item.strip()]
+        
+        # Check if new value already exists
+        if new_value in current_items:
+            logging.debug(f"Value '{new_value}' already exists in '{current_value}', no change needed")
+            return current_value
+        
+        # Append new value
+        current_items.append(new_value)
+        result = ', '.join(current_items)
+        logging.debug(f"Appended '{new_value}' to '{current_value}' -> '{result}'")
+        return result
         
     def update_now(self) -> list[str]:
         """Update all imagesets with the specified value and return error statistics."""
         
         error_imagesets = []
         
-        logging.info(f"Starting batch update of {len(self.imagesets)} imagesets with {self.update_type}={self.value}")
+        logging.info(f"Starting batch update of {len(self.imagesets)} imagesets with {self.update_type}={self.value} (append={self.append})")
         
         for imageset_name, imageset_obj in self.imagesets.items():
             
             try:
+                # Determine the value to set based on append mode
+                if self.append:
+                    current_value = self._get_current_property_value(imageset_obj, self.update_type)
+                    final_value = self._get_appended_value(current_value, self.value)
+                else:
+                    final_value = self.value
+                
+                # Set the property with the final value
                 if self.update_type == "status":
-                    imageset_obj.status = self.value
+                    imageset_obj.status = final_value
                 elif self.update_type == "edits":
-                    imageset_obj.edits = self.value
+                    imageset_obj.edits = final_value
                 elif self.update_type == "needs":
-                    imageset_obj.needs = self.value
+                    imageset_obj.needs = final_value
                 elif self.update_type == "good_for":
-                    imageset_obj.good_for = self.value
+                    imageset_obj.good_for = final_value
                 elif self.update_type == "posted_to":
-                    imageset_obj.posted_to = self.value
+                    imageset_obj.posted_to = final_value
                 else:
                     raise ValueError(f"Unsupported update_type: {self.update_type}")
                 
-                logging.debug(f"Successfully updated {imageset_name}: {self.update_type}={self.value}")
+                logging.debug(f"Successfully updated {imageset_name}: {self.update_type}={final_value} (append={self.append})")
                 
             except Exception as e:
                 error_imagesets.append(imageset_name)

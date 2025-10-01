@@ -46,9 +46,14 @@
         </div>
         
         <div style="margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid var(--border);">
-            <a href="/folder/{{ foldername }}/batch_update" class="btn btn-primary">
-                🔄 Batch Update Imagesets
-            </a>
+            <div style="display: flex; gap: var(--space-md); flex-wrap: wrap;">
+                <a href="/review/{{ foldername }}/list" class="btn btn-primary">
+                    📋 Review Presets
+                </a>
+                <a href="/folder/{{ foldername }}/batch_update" class="btn btn-primary">
+                    🔄 Batch Update Imagesets
+                </a>
+            </div>
         </div>
     </div>
                 
@@ -60,58 +65,74 @@
         {% if folder_data.imagesets %}
             <div class="imagesets-grid">
                 {% for imageset_name, imageset in folder_data.imagesets.items() %}
-                    <div class="card">
-                        <div class="card-header">
-                            <h3 style="margin: 0; color: var(--accent); font-size: 1.1rem;">{{ imageset_name }}</h3>
-                            <span class="status status-{{ imageset.status or 'new' }}">
-                                {{ imageset.status or 'new' }}
-                            </span>
-                        </div>
+                    <a href="/imageset/{{ foldername }}/{{ imageset_name }}" style="text-decoration: none; color: inherit;">
+                        <div class="card" style="cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease;" 
+                             onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)'" 
+                             onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)'">
+                            <div class="card-header">
+                                <h3 style="margin: 0; color: var(--accent); font-size: 1.1rem;">{{ imageset_name }}</h3>
+                                <span class="status status-{{ imageset.status or 'new' }}">
+                                    {{ imageset.status or 'new' }}
+                                </span>
+                            </div>
+                                        
+                            <div class="card-content">
+                                <!-- Cover Image Section -->
+                                {% if imageset.cover_image %}
+                                <div style="text-align: center; margin-bottom: var(--space-md); padding-bottom: var(--space-md); border-bottom: 1px solid var(--border);">
+                                    <img src="/images/{{ foldername }}/{{ imageset_name }}/{{ imageset.cover_image.split('/')[-1] }}" 
+                                         alt="Cover image for {{ imageset_name }}" 
+                                         style="max-width: 400px; max-height: 400px; width: auto; height: auto; border-radius: var(--radius-sm); border: 1px solid var(--border); object-fit: contain;">
+                                </div>
+                                {% else %}
+                                <div style="text-align: center; margin-bottom: var(--space-md); padding: var(--space-lg); border-bottom: 1px solid var(--border);">
+                                    <div style="color: var(--text); opacity: 0.4; font-size: 3rem;">📷</div>
+                                    <div style="font-size: 0.875rem; color: var(--text); opacity: 0.6; margin-top: var(--space-xs);">No cover image</div>
+                                </div>
+                                {% endif %}
+                                
+                                <!-- Metadata Section -->
+                                <div style="display: grid; gap: var(--space-sm);">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-xs) 0; border-bottom: 1px solid var(--border);">
+                                        <span style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">Files</span>
+                                        <span style="font-weight: 500; color: var(--accent);">{{ imageset.files|length }}</span>
+                                    </div>
                                     
-                        <div class="card-content">
-                            <div style="display: grid; gap: var(--space-sm);">
-                                <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-xs) 0; border-bottom: 1px solid var(--border);">
-                                    <span style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">Files</span>
-                                    <span style="font-weight: 500; color: var(--accent);">{{ imageset.files|length }}</span>
+                                    {% if imageset.source %}
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-xs) 0; border-bottom: 1px solid var(--border);">
+                                        <span style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">Source</span>
+                                        <span style="font-weight: 500; text-align: right; max-width: 60%; word-break: break-word;">{{ imageset.source }}</span>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if imageset.edits %}
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-xs) 0; border-bottom: 1px solid var(--border);">
+                                        <span style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">Edits</span>
+                                        <span style="font-weight: 500; text-align: right; max-width: 60%; word-break: break-word;">{{ imageset.edits }}</span>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if imageset.needs %}
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-xs) 0; border-bottom: 1px solid var(--border);">
+                                        <span style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">Needs</span>
+                                        <span style="font-weight: 500; text-align: right; max-width: 60%; word-break: break-word;">{{ imageset.needs }}</span>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if imageset.posted_to %}
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-xs) 0;">
+                                        <span style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">Posted To</span>
+                                        <span style="font-weight: 500; text-align: right; max-width: 60%; word-break: break-word;">{{ imageset.posted_to }}</span>
+                                    </div>
+                                    {% endif %}
                                 </div>
-                                
-                                {% if imageset.source %}
-                                <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-xs) 0; border-bottom: 1px solid var(--border);">
-                                    <span style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">Source</span>
-                                    <span style="font-weight: 500; text-align: right; max-width: 60%; word-break: break-word;">{{ imageset.source }}</span>
-                                </div>
-                                {% endif %}
-                                
-                                {% if imageset.edits %}
-                                <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-xs) 0; border-bottom: 1px solid var(--border);">
-                                    <span style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">Edits</span>
-                                    <span style="font-weight: 500; text-align: right; max-width: 60%; word-break: break-word;">{{ imageset.edits }}</span>
-                                </div>
-                                {% endif %}
-                                
-                                {% if imageset.needs %}
-                                <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-xs) 0; border-bottom: 1px solid var(--border);">
-                                    <span style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">Needs</span>
-                                    <span style="font-weight: 500; text-align: right; max-width: 60%; word-break: break-word;">{{ imageset.needs }}</span>
-                                </div>
-                                {% endif %}
-                                
-                                {% if imageset.posted_to %}
-                                <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-xs) 0;">
-                                    <span style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">Posted To</span>
-                                    <span style="font-weight: 500; text-align: right; max-width: 60%; word-break: break-word;">{{ imageset.posted_to }}</span>
-                                </div>
-                                {% endif %}
+                            </div>
+                            
+                            <div class="card-footer">
+                                <span style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">Click to view details →</span>
                             </div>
                         </div>
-                        
-                        <div class="card-footer">
-                            <a href="/api/imageset/{{ foldername }}/{{ imageset_name }}" class="btn btn-secondary" target="_blank">API Data</a>
-                            {% if imageset.cover_image %}
-                            <a href="/images/{{ foldername }}/{{ imageset_name }}/{{ imageset.cover_image | basename }}" class="btn btn-primary" target="_blank">View Cover</a>
-                            {% endif %}
-                        </div>
-                    </div>
+                    </a>
                 {% endfor %}
             </div>
         {% else %}

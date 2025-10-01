@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block title %}Review Presets - {{ foldername }}{% endblock %}
+
+{% block page_title %}Review Presets: {{ foldername }}{% endblock %}
+
+{% block navigation %}
+    {{ super() }}
+    <a href="/folder/{{ foldername }}">Back to Folder</a>
+{% endblock %}
+
+{% block head %}
+<style>
+    /* Custom styles for review presets list */
+    main { 
+        padding: var(--space-md); 
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    
+    .presets-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+        gap: var(--space-lg);
+        margin-top: var(--space-lg);
+    }
+    
+    .preset-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-xl);
+        padding: var(--space-lg);
+        transition: all 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-md);
+    }
+    
+    .preset-card:hover {
+        border-color: var(--primary);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    .preset-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: var(--space-md);
+    }
+    
+    .preset-name {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin: 0;
+    }
+    
+    .preset-description {
+        color: var(--text-secondary);
+        line-height: 1.5;
+        margin: 0;
+        flex-grow: 1;
+    }
+    
+    .preset-details {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-sm);
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+    }
+    
+    .preset-detail {
+        display: flex;
+        gap: var(--space-sm);
+    }
+    
+    .preset-detail-label {
+        font-weight: 500;
+        min-width: 80px;
+        color: var(--text-primary);
+    }
+    
+    .preset-detail-value {
+        color: var(--text-secondary);
+    }
+    
+    .preset-actions {
+        display: flex;
+        gap: var(--space-sm);
+        margin-top: var(--space-md);
+        padding-top: var(--space-md);
+        border-top: 1px solid var(--border);
+    }
+    
+    .btn-review {
+        background: var(--primary);
+        color: white;
+        padding: var(--space-sm) var(--space-md);
+        border: none;
+        border-radius: var(--radius-md);
+        text-decoration: none;
+        font-weight: 500;
+        transition: background-color 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-xs);
+    }
+    
+    .btn-review:hover {
+        background: var(--primary-dark);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: var(--space-xl);
+        color: var(--text-secondary);
+    }
+    
+    .empty-state h3 {
+        margin-bottom: var(--space-md);
+        color: var(--text-primary);
+    }
+    
+    .breadcrumb {
+        margin-bottom: var(--space-lg);
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+    }
+    
+    .breadcrumb a {
+        color: var(--primary);
+        text-decoration: none;
+    }
+    
+    .breadcrumb a:hover {
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    <a href="/">Home</a> / 
+    <a href="/folders">Folders</a> / 
+    <a href="/folder/{{ foldername }}">{{ foldername }}</a> / 
+    Review Presets
+</div>
+
+{% if presets %}
+    <div class="presets-container">
+        {% for review_name, preset_config in presets.items() %}
+        <div class="preset-card">
+            <div class="preset-header">
+                <h3 class="preset-name">{{ review_name.replace('_', ' ').title() }}</h3>
+            </div>
+            
+            <p class="preset-description">
+                {{ preset_config.get('description', 'No description available') }}
+            </p>
+            
+            <div class="preset-details">
+                {% if preset_config.get('states') %}
+                <div class="preset-detail">
+                    <span class="preset-detail-label">States:</span>
+                    <span class="preset-detail-value">{{ preset_config.states | join(', ') }}</span>
+                </div>
+                {% endif %}
+                
+                {% if preset_config.get('review_type') %}
+                <div class="preset-detail">
+                    <span class="preset-detail-label">Type:</span>
+                    <span class="preset-detail-value">{{ preset_config.review_type }}</span>
+                </div>
+                {% endif %}
+                
+                {% if preset_config.get('options') %}
+                <div class="preset-detail">
+                    <span class="preset-detail-label">Options:</span>
+                    <span class="preset-detail-value">{{ preset_config.options | join(', ') }}</span>
+                </div>
+                {% endif %}
+                
+                {% if preset_config.get('append') %}
+                <div class="preset-detail">
+                    <span class="preset-detail-label">Mode:</span>
+                    <span class="preset-detail-value">Append</span>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="preset-actions">
+                <a href="/review/{{ foldername }}/{{ review_name }}" class="btn-review">
+                    Start Review →
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="empty-state">
+        <h3>No Review Presets Available</h3>
+        <p>No review presets have been configured. Check your configuration file to add review presets.</p>
+    </div>
+{% endif %}
+{% endblock %}

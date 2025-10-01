@@ -43,10 +43,24 @@
 <div class="section">
     <h2 class="section-title">Select Imagesets ({{ folder_data.imageset_count }} total)</h2>
     
-    <div style="margin-bottom: var(--space-md); display: flex; gap: var(--space-sm); flex-wrap: wrap;">
-        <button type="button" class="btn" onclick="selectAll()">Select All</button>
-        <button type="button" class="btn" onclick="selectNone()">Select None</button>
-        <button type="button" class="btn" onclick="selectByStatus()">Select by Status</button>
+    <div style="margin-bottom: var(--space-md);">
+        <div style="display: flex; gap: var(--space-sm); flex-wrap: wrap; margin-bottom: var(--space-md);">
+            <button type="button" class="btn" onclick="selectAll()">Select All</button>
+            <button type="button" class="btn" onclick="selectNone()">Select None</button>
+            <button type="button" class="btn" onclick="selectByStatus()">Select by Status</button>
+        </div>
+        
+        <div style="display: flex; gap: var(--space-md); align-items: flex-start;">
+            <div style="flex: 1;">
+                <label for="imagesetNames" style="display: block; margin-bottom: var(--space-xs); font-weight: bold;">Select by Names:</label>
+                <textarea 
+                    id="imagesetNames" 
+                    placeholder="Enter imageset names (one per line)..."
+                    style="width: 100%; height: 100px; padding: var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-md); font-family: monospace; font-size: 0.9rem; resize: vertical;"
+                ></textarea>
+            </div>
+            <button type="button" class="btn" onclick="selectByNames()" style="margin-top: 24px;">Select Names</button>
+        </div>
     </div>
 
     <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-md); max-height: 400px; overflow-y: auto; border: 1px solid var(--border); padding: var(--space-md); background: var(--muted); border-radius: var(--radius-lg);">
@@ -127,6 +141,64 @@
                     const details = item.querySelector('.imageset-details').textContent;
                     cb.checked = details.includes(`Status: ${status}`);
                 });
+            }
+        }
+
+        function selectByNames() {
+            const textarea = document.getElementById('imagesetNames');
+            const namesText = textarea.value.trim();
+            
+            if (!namesText) {
+                alert('Please enter imageset names in the text area.');
+                return;
+            }
+            
+            // Parse names from textarea (split by newlines and clean up)
+            const requestedNames = namesText
+                .split('\n')
+                .map(name => name.trim())
+                .filter(name => name.length > 0);
+            
+            if (requestedNames.length === 0) {
+                alert('No valid imageset names found.');
+                return;
+            }
+            
+            // First, uncheck all checkboxes
+            selectNone();
+            
+            // Track matches
+            let matchedCount = 0;
+            const notFoundNames = [];
+            
+            // Select checkboxes for matching imageset names
+            const checkboxes = document.querySelectorAll('.imageset-checkbox');
+            checkboxes.forEach(cb => {
+                const imagesetName = cb.value;
+                if (requestedNames.includes(imagesetName)) {
+                    cb.checked = true;
+                    matchedCount++;
+                }
+            });
+            
+            // Find names that weren't matched
+            requestedNames.forEach(name => {
+                const found = Array.from(checkboxes).some(cb => cb.value === name);
+                if (!found) {
+                    notFoundNames.push(name);
+                }
+            });
+            
+            // Show results
+            let message = `Selected ${matchedCount} imagesets.`;
+            if (notFoundNames.length > 0) {
+                message += `\n\nNot found: ${notFoundNames.join(', ')}`;
+            }
+            alert(message);
+            
+            // Clear the textarea after successful selection
+            if (matchedCount > 0) {
+                textarea.value = '';
             }
         }
 
