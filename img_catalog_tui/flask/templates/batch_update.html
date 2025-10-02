@@ -4,11 +4,6 @@
 
 {% block page_title %}{{ title }}{% endblock %}
 
-{% block navigation %}
-    <a href="/">Home</a>
-    <a href="/folders">Folders</a>
-    <a href="/folder/{{ foldername }}">{{ foldername }}</a>
-{% endblock %}
 
 {% block content %}
 {% if error %}

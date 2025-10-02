@@ -562,6 +562,237 @@ textarea:focus {
     }
 }
 
+/* =======================
+   REVIEW PAGE LAYOUT
+   ======================= */
+.review-nav {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-sm);
+    position: fixed;
+    top: 72px;
+    left: var(--space-md);
+    width: 200px;
+    height: calc(100% - 100px);
+    overflow: auto;
+    z-index: 40;
+}
+
+.review-content {
+    margin-left: 240px;
+    margin-right: 320px;
+    max-width: calc(100% - 560px);
+}
+
+.review-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(700px, 1fr));
+    gap: var(--space-xl);
+    width: 100%;
+}
+
+.review-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.02);
+    display: flex;
+    flex-direction: column;
+    min-height: 700px;
+}
+
+.review-card[hidden] { 
+    display: none !important; 
+}
+
+.review-card.keyboard-selected {
+    border: 2px solid var(--accent);
+    box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.2);
+    transform: scale(1.02);
+    transition: all var(--transition-normal);
+}
+
+.review-card-header {
+    padding: var(--space-md) var(--space-lg);
+    background: linear-gradient(90deg, rgba(96, 165, 250, 0.2), rgba(34, 211, 238, 0.2));
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: 1.125rem;
+}
+
+.review-card-content {
+    flex: 1;
+    padding: var(--space-xl);
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
+.review-card-footer {
+    padding: var(--space-lg);
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: var(--space-md);
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* =======================
+   CART SYSTEM
+   ======================= */
+.carts {
+    position: fixed;
+    top: 72px;
+    right: var(--space-md);
+    width: 280px;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    z-index: 40;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+}
+
+.cart {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    padding: var(--space-sm);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    min-height: 150px;
+    max-height: 300px;
+    overflow: auto;
+}
+
+.cart-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    justify-content: space-between;
+    font-weight: 600;
+}
+
+.cart-items {
+    display: grid;
+    gap: var(--space-sm);
+}
+
+.cart-item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: var(--space-sm);
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.thumb {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    display: grid;
+    place-items: center;
+    font-weight: 800;
+    font-size: 0.75rem;
+    background: var(--muted);
+}
+
+/* =======================
+   TOAST NOTIFICATIONS
+   ======================= */
+.toast {
+    position: fixed;
+    inset: auto 0 18px;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    z-index: 100;
+}
+
+.toast > div {
+    background: rgba(17, 24, 39, 0.9);
+    border: 1px solid var(--border);
+    padding: var(--space-sm) var(--space-md);
+    border-radius: 999px;
+    box-shadow: var(--shadow-lg);
+}
+
+/* =======================
+   RESPONSIVE DESIGN
+   ======================= */
+@media (max-width: 768px) {
+    main {
+        padding: var(--space-md);
+    }
+    
+    .header-content {
+        flex-direction: column;
+        gap: var(--space-md);
+        align-items: flex-start;
+    }
+    
+    .nav-links {
+        order: -1;
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .grid-2,
+    .grid-3,
+    .grid-4,
+    .folders-grid,
+    .imagesets-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .card-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
+/* Review page responsive adjustments */
+@media (max-width: 2000px) {
+    .review-cards { 
+        grid-template-columns: repeat(auto-fit, minmax(600px, 1fr)); 
+    }
+}
+
+@media (max-width: 1600px) {
+    .review-cards { 
+        grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); 
+    }
+}
+
+@media (max-width: 1200px) {
+    .review-cards { 
+        grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); 
+    }
+    .review-content { 
+        margin-left: 220px; 
+        margin-right: 300px; 
+    }
+    .review-nav { 
+        width: 180px; 
+    }
+    .carts { 
+        width: 260px; 
+    }
+}
+
 @media (max-width: 480px) {
     header {
         padding: var(--space-sm) var(--space-md);

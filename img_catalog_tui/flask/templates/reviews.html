@@ -4,179 +4,9 @@
 
 {% block page_title %}Image Catalog Review: {{ foldername }}{% endblock %}
 
-{% block navigation %}
-    <div style="font-size: 0.9rem; opacity: 0.8;">Review Type: {{ review_type }}</div>
-{% endblock %}
 
 {% block head %}
-<style>
-    /* Custom styles for review page layout */
-    main { padding: var(--space-md); }
-    
-    .review-nav {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-xl);
-        padding: var(--space-sm);
-        position: fixed;
-        top: 72px;
-        left: var(--space-md);
-        width: 200px;
-        height: calc(100% - 100px);
-        overflow: auto;
-        z-index: 40;
-    }
-    
-    .review-content {
-        margin-left: 240px;
-        margin-right: 320px;
-        max-width: calc(100% - 560px);
-    }
-    
-    .review-cards {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(700px, 1fr));
-        gap: var(--space-xl);
-        width: 100%;
-    }
-    
-    .review-card {
-        border: 1px solid var(--border);
-        border-radius: var(--radius-xl);
-        overflow: hidden;
-        background: rgba(255, 255, 255, 0.02);
-        display: flex;
-        flex-direction: column;
-        min-height: 700px;
-    }
-    
-    .review-card[hidden] { display: none !important; }
-    
-    .review-card-header {
-        padding: var(--space-md) var(--space-lg);
-        background: linear-gradient(90deg, rgba(96, 165, 250, 0.2), rgba(34, 211, 238, 0.2));
-        border-bottom: 1px solid var(--border);
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: var(--space-sm);
-        font-size: 1.125rem;
-    }
-    
-    .review-card-content {
-        flex: 1;
-        padding: var(--space-xl);
-        text-align: center;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        flex-direction: column;
-        gap: var(--space-md);
-    }
-    
-    .review-card-footer {
-        padding: var(--space-lg);
-        border-top: 1px solid var(--border);
-        display: flex;
-        gap: var(--space-md);
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-    }
-    
-    .carts {
-        position: fixed;
-        top: 72px;
-        right: var(--space-md);
-        width: 280px;
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-md);
-        z-index: 40;
-        max-height: calc(100vh - 100px);
-        overflow-y: auto;
-    }
-    
-    .cart {
-        background: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: var(--radius-xl);
-        padding: var(--space-sm);
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-sm);
-        min-height: 150px;
-        max-height: 300px;
-        overflow: auto;
-    }
-    
-    .cart-header {
-        display: flex;
-        align-items: center;
-        gap: var(--space-sm);
-        justify-content: space-between;
-        font-weight: 600;
-    }
-    
-    .cart-items {
-        display: grid;
-        gap: var(--space-sm);
-    }
-    
-    .cart-item {
-        display: grid;
-        grid-template-columns: auto 1fr auto;
-        gap: var(--space-sm);
-        align-items: center;
-        border: 1px solid var(--border);
-        border-radius: var(--radius-md);
-        padding: var(--space-sm);
-        background: rgba(255, 255, 255, 0.03);
-    }
-    
-    .thumb {
-        width: 44px;
-        height: 44px;
-        border-radius: var(--radius-lg);
-        border: 1px solid var(--border);
-        display: grid;
-        place-items: center;
-        font-weight: 800;
-        font-size: 0.75rem;
-        background: var(--muted);
-    }
-    
-    .toast {
-        position: fixed;
-        inset: auto 0 18px;
-        display: grid;
-        place-items: center;
-        pointer-events: none;
-        z-index: 100;
-    }
-    
-    .toast > div {
-        background: rgba(17, 24, 39, 0.9);
-        border: 1px solid var(--border);
-        padding: var(--space-sm) var(--space-md);
-        border-radius: 999px;
-        box-shadow: var(--shadow-lg);
-    }
-    
-    /* Responsive adjustments */
-    @media (max-width: 2000px) {
-        .review-cards { grid-template-columns: repeat(auto-fit, minmax(600px, 1fr)); }
-    }
-    @media (max-width: 1600px) {
-        .review-cards { grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); }
-    }
-    @media (max-width: 1200px) {
-        .review-cards { grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); }
-        .review-content { margin-left: 220px; margin-right: 300px; }
-        .review-nav { width: 180px; }
-        .carts { width: 260px; }
-    }
-</style>
+<!-- Review page styles are now in main.css -->
 {% endblock %}
 
 {% block content %}
@@ -186,6 +16,15 @@
         <p>Total: <span id="totalCount">0</span></p>
         <p>Visible: <span id="visibleCount">0</span></p>
         <p>Status: <span id="loadingStatus">Loading...</span></p>
+    </div>
+    
+    <div style="margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid var(--border);">
+        <h4 style="margin: 0 0 var(--space-sm) 0; color: var(--accent); font-size: 0.875rem;">Keyboard Shortcuts</h4>
+        <div style="font-size: 0.75rem; color: var(--text); line-height: 1.4;">
+            <p style="margin: var(--space-xs) 0;">← → Navigate</p>
+            <p style="margin: var(--space-xs) 0;">1-5 Actions</p>
+            <p style="margin: var(--space-xs) 0;">h/? Help</p>
+        </div>
     </div>
 </nav>
 
@@ -258,6 +97,9 @@
                     data-folder="{{ imageset_data.imageset_folder or '' }}" 
                     data-imageset="{{ imageset_name }}"
                     onclick="copyWindowsPath(this)">Copy Path</button>
+                <button class="btn imageset-link" 
+                    data-imageset="{{ imageset_name }}"
+                    onclick="openImagesetPage(this)">Imageset</button>
             </div>
         </article>
         {% endfor %}
@@ -287,6 +129,7 @@
 
 {% block scripts %}
 <script>
+    console.log('Reviews.html JavaScript loading...');
     const $ = (s,r=document)=>r.querySelector(s);
     const $$ = (s,r=document)=>r.querySelectorAll(s);
     const cardsEl = $('#cards');
@@ -304,6 +147,10 @@
     reviewOptions.forEach(option => {
         state[option] = [];
     });
+
+    // Keyboard navigation state
+    let currentImagesetIndex = 0;
+    let visibleImagesets = [];
 
     function showToast(msg){toastMsgEl.textContent=msg;toastEl.hidden=false;clearTimeout(showToast.t);showToast.t=setTimeout(()=>toastEl.hidden=true,1200);}
     function getInitials(str){return str.slice(0,2).toUpperCase();}
@@ -402,6 +249,69 @@
       const visible = $$('.review-card:not([hidden])').length;
       $('#totalCount').textContent = total;
       $('#visibleCount').textContent = visible;
+      updateVisibleImagesets();
+    }
+
+    function updateVisibleImagesets() {
+      visibleImagesets = Array.from($$('.review-card:not([hidden])'));
+      console.log(`Updated visible imagesets: ${visibleImagesets.length} found`);
+      // Ensure current index is within bounds
+      if (currentImagesetIndex >= visibleImagesets.length) {
+        currentImagesetIndex = Math.max(0, visibleImagesets.length - 1);
+      }
+      updateCurrentSelection();
+    }
+
+    function updateCurrentSelection() {
+      // Remove previous selection highlight
+      $$('.review-card').forEach(card => card.classList.remove('keyboard-selected'));
+      
+      console.log(`Updating selection: index ${currentImagesetIndex}, visible count: ${visibleImagesets.length}`);
+      
+      // Add highlight to current selection
+      if (visibleImagesets.length > 0 && currentImagesetIndex >= 0 && currentImagesetIndex < visibleImagesets.length) {
+        const currentCard = visibleImagesets[currentImagesetIndex];
+        currentCard.classList.add('keyboard-selected');
+        console.log('Added keyboard-selected class to card');
+        
+        // Scroll into view if needed
+        currentCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        console.log('No valid selection to highlight');
+      }
+    }
+
+    function navigateImagesets(direction) {
+      console.log(`Navigate ${direction}, visible: ${visibleImagesets.length}, current: ${currentImagesetIndex}`);
+      if (visibleImagesets.length === 0) {
+        console.log('No visible imagesets to navigate');
+        return;
+      }
+      
+      const oldIndex = currentImagesetIndex;
+      if (direction === 'left' && currentImagesetIndex > 0) {
+        currentImagesetIndex--;
+      } else if (direction === 'right' && currentImagesetIndex < visibleImagesets.length - 1) {
+        currentImagesetIndex++;
+      }
+      
+      console.log(`Index changed from ${oldIndex} to ${currentImagesetIndex}`);
+      updateCurrentSelection();
+    }
+
+    function triggerActionButton(buttonIndex) {
+      if (visibleImagesets.length === 0 || currentImagesetIndex < 0 || currentImagesetIndex >= visibleImagesets.length) {
+        return;
+      }
+      
+      const currentCard = visibleImagesets[currentImagesetIndex];
+      const actionButtons = currentCard.querySelectorAll('.option-btn');
+      
+      if (buttonIndex >= 1 && buttonIndex <= actionButtons.length) {
+        const button = actionButtons[buttonIndex - 1];
+        button.click();
+        showToast(`Applied: ${button.textContent}`);
+      }
     }
 
     // Function to open image in new tab
@@ -432,6 +342,14 @@
         showToast('Copy failed');
       });
     }
+    
+    // Function to open imageset page in new tab
+    function openImagesetPage(btn) {
+      const imagesetName = btn.dataset.imageset;
+      const foldername = '{{ foldername }}';
+      const url = `/folder/${foldername}/imageset/${imagesetName}`;
+      window.open(url, '_blank');
+    }
 
     // Event listeners
     $('.review-content').addEventListener('click',e=>{
@@ -454,13 +372,88 @@
         if (applyBtn) applyBtn.onclick = () => applyCart(option);
     });
 
-    $('#year').textContent=new Date().getFullYear();
+    // Keyboard event handler
+    console.log('Attaching keyboard event listener...');
+    document.addEventListener('keydown', function(e) {
+      console.log(`Key pressed: ${e.key}, target: ${e.target.tagName}`);
+      
+      // Only handle keyboard shortcuts when not typing in an input field
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        console.log('Ignoring key press - in input field');
+        return;
+      }
+      
+      switch(e.key) {
+        case 'ArrowLeft':
+          console.log('Left arrow pressed');
+          e.preventDefault();
+          navigateImagesets('left');
+          break;
+        case 'ArrowRight':
+          console.log('Right arrow pressed');
+          e.preventDefault();
+          navigateImagesets('right');
+          break;
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+          console.log(`Number ${e.key} pressed`);
+          e.preventDefault();
+          triggerActionButton(parseInt(e.key));
+          break;
+        case '?':
+        case 'h':
+          console.log('Help key pressed');
+          e.preventDefault();
+          showKeyboardHelp();
+          break;
+      }
+    });
+
+    function showKeyboardHelp() {
+      const helpText = `Keyboard Shortcuts:
+← → : Navigate between imagesets
+1-5 : Apply action buttons (1=${reviewOptions[0] || 'N/A'}, 2=${reviewOptions[1] || 'N/A'}, etc.)
+h/? : Show this help`;
+      
+      showToast(helpText);
+    }
+
+    // Test function - call from browser console: testKeyboard()
+    window.testKeyboard = function() {
+      console.log('=== KEYBOARD TEST ===');
+      console.log('Visible imagesets:', visibleImagesets.length);
+      console.log('Current index:', currentImagesetIndex);
+      console.log('Review options:', reviewOptions);
+      console.log('Cards element:', cardsEl);
+      console.log('All review cards:', $$('.review-card').length);
+      console.log('Visible review cards:', $$('.review-card:not([hidden])').length);
+      
+      if (visibleImagesets.length > 0) {
+        console.log('Testing navigation...');
+        navigateImagesets('right');
+      } else {
+        console.log('No visible imagesets to test with');
+      }
+    };
 
     // Initialize page when DOM loads
     document.addEventListener('DOMContentLoaded', function() {
+      console.log('DOM loaded, initializing keyboard navigation...');
+      
       // Update counts for already rendered cards
       updateCounts();
       $('#loadingStatus').textContent = 'Loaded';
+      
+      // Set initial selection to first visible imageset
+      // updateCounts() already calls updateVisibleImagesets() which calls updateCurrentSelection()
+      // So we just need to ensure we start at index 0
+      currentImagesetIndex = 0;
+      updateCurrentSelection();
+      
+      console.log('Keyboard navigation initialized. Try pressing arrow keys or type testKeyboard() in console.');
     });
 </script>
 {% endblock scripts %}

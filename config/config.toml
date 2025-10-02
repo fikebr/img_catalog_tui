@@ -50,9 +50,9 @@ options = ["keep", "archive"]
 description = "Review new images for status decisions"
 
 [review_presets.edit_workflow]
-states = ["keep", "edit"]
+states = ["keep"]
 review_type = "edits"
-options = ["creative", "photoshop"]
+options = ["creative", "photoshop", "rmbg"]
 append = true
 description = "Review images that need editing work"
 

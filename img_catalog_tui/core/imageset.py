@@ -32,6 +32,21 @@ class Imageset():
     # status
     # needs
     
+    def _validate_comma_separated_values(self, value: str, valid_options: list[str], field_name: str) -> None:
+        """Validate comma-separated values against config options."""
+        if not value:
+            return
+            
+        # Split by comma and strip whitespace
+        values = [item.strip() for item in value.split(',') if item.strip()]
+        
+        # Validate each value
+        for val in values:
+            if val not in valid_options:
+                error_msg = f"Invalid {field_name} value '{val}' in '{value}'. Valid options are: {', '.join(valid_options)}"
+                logging.error(error_msg)
+                raise ValueError(error_msg)
+    
     
     @property
     def cover_image(self) -> str:
@@ -166,12 +181,14 @@ class Imageset():
     @edits.setter
     def edits(self, value: str) -> None:
         """Set the edits value after validating against config options."""
-        # Validate value against config
+        # Validate value against config (supports comma-separated values)
         valid_edits = self.config.config_data.get("edits", [])
-        if value and value not in valid_edits:
-            error_msg = f"Invalid edits value '{value}'. Valid options are: {', '.join(valid_edits)}"
-            logging.error(error_msg)
-            raise ValueError(error_msg)
+        self._validate_comma_separated_values(value, valid_edits, "edits")
+        
+        # If setting edits to a non-null value and status is not "edit", set status to "edit"
+        if value and value.strip() and self.status != "edit":
+            logging.info(f"Setting status to 'edit' because edits is being set to '{value}'")
+            self.status = "edit"
         
         self.toml.set(key="edits", value=value)
 
@@ -198,12 +215,9 @@ class Imageset():
     @needs.setter
     def needs(self, value: str) -> None:
         """Set the needs value after validating against config options."""
-        # Validate value against config
+        # Validate value against config (supports comma-separated values)
         valid_needs = self.config.config_data.get("needs", [])
-        if value and value not in valid_needs:
-            error_msg = f"Invalid needs value '{value}'. Valid options are: {', '.join(valid_needs)}"
-            logging.error(error_msg)
-            raise ValueError(error_msg)
+        self._validate_comma_separated_values(value, valid_needs, "needs")
         
         self.toml.set(key="needs", value=value)
         
@@ -214,12 +228,9 @@ class Imageset():
     @good_for.setter
     def good_for(self, value: str) -> None:
         """Set the good_for value after validating against config options."""
-        # Validate value against config
+        # Validate value against config (supports comma-separated values)
         valid_good_for = self.config.config_data.get("good_for", [])
-        if value and value not in valid_good_for:
-            error_msg = f"Invalid good_for value '{value}'. Valid options are: {', '.join(valid_good_for)}"
-            logging.error(error_msg)
-            raise ValueError(error_msg)
+        self._validate_comma_separated_values(value, valid_good_for, "good_for")
         
         self.toml.set(key="good_for", value=value)
         
@@ -231,12 +242,9 @@ class Imageset():
     @posted_to.setter
     def posted_to(self, value: str) -> None:
         """Set the posted_to value after validating against config options."""
-        # Validate value against config
+        # Validate value against config (supports comma-separated values)
         valid_posted_to = self.config.config_data.get("posted_to", [])
-        if value and value not in valid_posted_to:
-            error_msg = f"Invalid posted_to value '{value}'. Valid options are: {', '.join(valid_posted_to)}"
-            logging.error(error_msg)
-            raise ValueError(error_msg)
+        self._validate_comma_separated_values(value, valid_posted_to, "posted_to")
         
         self.toml.set(section="biz", key="posted_to", value=value)
         

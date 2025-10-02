@@ -3,8 +3,10 @@ Logging module for the application.
 """
 
 import logging
-from logging.handlers import RotatingFileHandler
+from logging.handlers import TimedRotatingFileHandler
 import os
+import sys
+import time
 
 LOG_FORMAT = "%(asctime)s %(levelname)s %(filename)s %(funcName)s:%(lineno)d - %(message)s"
 DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -14,11 +16,25 @@ LOG_LEVEL_CONSOLE = logging.DEBUG
 LOG_LEVEL_FILE = logging.DEBUG
 
 
+class SafeTimedRotatingFileHandler(TimedRotatingFileHandler):
+    """A TimedRotatingFileHandler that handles Windows file locking issues gracefully."""
+    
+    def doRollover(self):
+        """Override doRollover to handle Windows file locking issues."""
+        try:
+            super().doRollover()
+        except (OSError, PermissionError) as e:
+            # If rollover fails, just continue logging to the current file
+            # This prevents the application from crashing due to file locks
+            print(f"Warning: Log rollover failed: {e}. Continuing with current log file.")
+
+
 def setup_logging():
     """
     Configure logging settings for the application.
 
-    Logs are written to a rotating file with a maximum size of 10 MB.
+    Logs are written to a time-based rotating file that rotates daily at midnight.
+    Uses a Windows-friendly approach that handles file locking issues gracefully.
     The log format includes the date, time, log level, line number, and message.
     """
     # Configure root logger
@@ -39,13 +55,23 @@ def setup_logging():
             print(f"Error creating log directory: {e}")
             return
 
-    # Set up the rotating file handler for DEBUG and above
-    file_handler = RotatingFileHandler(
-        LOG_FILE, maxBytes=LOG_FILE_MAX_SIZE, backupCount=5
-    )
-    file_handler.setLevel(LOG_LEVEL_FILE)  # File gets DEBUG and above
-    file_handler.setFormatter(logging.Formatter(LOG_FORMAT, DATE_FORMAT))
-    logger.addHandler(file_handler)
+    # Set up the safe timed rotating file handler for DEBUG and above
+    # This is more Windows-friendly than RotatingFileHandler
+    try:
+        file_handler = SafeTimedRotatingFileHandler(
+            LOG_FILE, 
+            when='midnight',
+            interval=1,
+            backupCount=7,
+            encoding='utf-8'
+        )
+        file_handler.setLevel(LOG_LEVEL_FILE)  # File gets DEBUG and above
+        file_handler.setFormatter(logging.Formatter(LOG_FORMAT, DATE_FORMAT))
+        logger.addHandler(file_handler)
+    except (OSError, PermissionError) as e:
+        print(f"Warning: Could not set up file logging: {e}")
+        print("Continuing with console logging only...")
+        # Continue without file logging if there's an issue
 
     # Set up console handler for INFO and above
     console_handler = logging.StreamHandler()
