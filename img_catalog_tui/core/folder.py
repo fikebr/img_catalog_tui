@@ -117,7 +117,12 @@ class ImagesetFolder:
             subfolders = self.archive_abandoned_folders(imagesets=subfolders)
             
             for imageset_name in subfolders:
-                self.imagesets[imageset_name] = Imageset(config=self.config, folder_name=self.foldername, imageset_name=imageset_name)
+                imageset_obj = Imageset(config=self.config, folder_name=self.foldername, imageset_name=imageset_name)
+                
+                if imageset_obj.status != "archive":
+                    self.imagesets[imageset_name] = imageset_obj
+                else:
+                    logging.info(f"imageset {imageset_name} is status=archived so it did not get loaded into this folder.")
             
             logging.info(f"Folder scan completed for {folder_name}")
             return True

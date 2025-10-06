@@ -106,6 +106,40 @@
                 </div>
             </div>
             
+            <!-- Image Cards Section (visible only if more than 1 image file) -->
+            {% set ns = namespace(img_count=0) %}
+            {% for filename, info in imageset_data.files.items() %}
+                {% if info.ext and info.ext|lower in ['.jpg', '.jpeg', '.png', '.gif', '.webp'] %}
+                    {% set ns.img_count = ns.img_count + 1 %}
+                {% endif %}
+            {% endfor %}
+            {% if ns.img_count > 1 %}
+            <div class="section" style="margin-top: var(--space-lg);">
+                <h2 class="section-title">🖼️ Image Cards</h2>
+                <div class="files-grid" style="display: grid; gap: var(--space-sm); margin-top: var(--space-md); grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); align-items: start;">
+                    {% for filename, file_info in imageset_data.files.items() %}
+                        {% if file_info.ext and file_info.ext|lower in ['.jpg', '.jpeg', '.png', '.gif', '.webp'] %}
+                        <div class="card" style="padding: var(--space-sm);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-sm);">
+                                <span style="font-weight: 600; font-size: 0.95rem;">
+                                    {{ (file_info['tags'] | default([])) | join(' | ') }}
+                                </span>
+                            </div>
+                            <a href="/images/{{ foldername }}/{{ imageset_name }}/{{ filename.split('/')[-1] }}" target="_blank" style="display: block; text-align: center;">
+                                <img src="/images/{{ foldername }}/{{ imageset_name }}/{{ filename.split('/')[-1] }}"
+                                     alt="{{ filename.split('/')[-1] }}"
+                                     style="max-width: 100%; max-height: 260px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+                            </a>
+                            <div style="display: flex; justify-content: flex-end; margin-top: var(--space-sm);">
+                                <button class="btn btn-secondary" style="font-size: 0.8rem;" data-path="{{ file_info['fullpath'] }}" onclick="copyFullPath(this)">Copy Full Path</button>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
             <!-- Files Section -->
             <div class="section" style="margin-top: var(--space-lg);">
                 <h2 class="section-title">📁 Files ({{ imageset_data.files|length }})</h2>
@@ -145,4 +179,27 @@
         {% endif %}
     </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function copyFullPath(btn) {
+    try {
+        const fullPath = btn.getAttribute('data-path') || '';
+        if (!fullPath) { return; }
+        navigator.clipboard.writeText(fullPath)
+            .then(() => {
+                // Optional lightweight UX feedback
+                btn.textContent = 'Copied!';
+                setTimeout(() => { btn.textContent = 'Copy Full Path'; }, 1200);
+            })
+            .catch((err) => {
+                console.error('Clipboard write failed:', err);
+            });
+    } catch (e) {
+        console.error('Copy failed:', e);
+    }
+}
+</script>
 {% endblock %}

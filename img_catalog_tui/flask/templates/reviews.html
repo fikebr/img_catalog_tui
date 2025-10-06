@@ -10,6 +10,19 @@
 {% endblock %}
 
 {% block content %}
+<!-- Breadcrumb Navigation -->
+<nav class="breadcrumb-nav">
+    <div class="breadcrumb-items">
+        <a href="/">Home</a>
+        <span class="breadcrumb-separator">→</span>
+        <a href="/folders">Folders</a>
+        <span class="breadcrumb-separator">→</span>
+        <a href="/folder/{{ foldername }}">{{ foldername }}</a>
+        <span class="breadcrumb-separator">→</span>
+        <span class="breadcrumb-current">Reviews</span>
+    </div>
+</nav>
+
 <nav class="review-nav">
     <h3 style="margin: 0 0 var(--space-md) 0; color: var(--accent);">Navigation</h3>
     <div style="font-size: 0.875rem; color: var(--text);">
@@ -347,7 +360,7 @@
     function openImagesetPage(btn) {
       const imagesetName = btn.dataset.imageset;
       const foldername = '{{ foldername }}';
-      const url = `/folder/${foldername}/imageset/${imagesetName}`;
+      const url = `/imageset/${foldername}/${imagesetName}`;
       window.open(url, '_blank');
     }
 

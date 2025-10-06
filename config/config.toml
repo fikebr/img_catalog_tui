@@ -4,9 +4,12 @@
 file_tags = ["orig", "thumb", "v2", "v3", "v4", "v5", "up2", "up3", "up4", "up6", "interview", "raw"]
 img_file_ext = ["png", "jpg", "jpeg", "bmp"]
 
+ext_type_dict
+
+
 # selection options
 status = ["new", "keep", "edit", "working", "posted", "archive"]
-edits = ["creative", "photoshop", "rmbg"]
+edits = ["creative", "photoshop", "rmbg", "up"]
 needs = ["upscale", "vector", "orig", "thumbnail", "interview", "creativeup"]
 good_for = ["stock", "rb", "poster"]
 posted_to = ["stock", "rb", "tp", "faa", "etsy"]
@@ -52,7 +55,7 @@ description = "Review new images for status decisions"
 [review_presets.edit_workflow]
 states = ["keep"]
 review_type = "edits"
-options = ["creative", "photoshop", "rmbg"]
+options = ["all"]
 append = true
 description = "Review images that need editing work"
 

@@ -1,6 +1,8 @@
 from PIL import Image, ExifTags
+from PIL.ExifTags import IFD
 import os
 import json
+import logging
 
 class ImagesetMetaData:
     
@@ -123,6 +125,37 @@ class ImagesetMetaData:
             raise FileExistsError(f"Image file not found: {imagefile}")
         
         return(imagefile)
+    
+    def _make_serializable(self, data: dict) -> dict:
+        """Convert EXIF data to TOML-serializable format."""
+        serializable_data = {}
+        
+        for key, value in data.items():
+            try:
+                # Handle IFDRational objects by converting to float
+                if hasattr(value, 'numerator') and hasattr(value, 'denominator'):
+                    serializable_data[key] = float(value)
+                # Handle tuples by converting to lists
+                elif isinstance(value, tuple):
+                    serializable_data[key] = list(value)
+                # Handle bytes by converting to string representation
+                elif isinstance(value, bytes):
+                    try:
+                        # Try to decode as UTF-8 first
+                        serializable_data[key] = value.decode('utf-8')
+                    except UnicodeDecodeError:
+                        # If that fails, use string representation
+                        serializable_data[key] = str(value)
+                # Handle other non-serializable types
+                elif not isinstance(value, (str, int, float, bool, list, dict)):
+                    serializable_data[key] = str(value)
+                else:
+                    serializable_data[key] = value
+            except Exception as e:
+                logging.warning(f"Could not serialize EXIF field {key}: {e}")
+                serializable_data[key] = str(value)
+        
+        return serializable_data
         
     
     def set_data(self):
@@ -134,7 +167,8 @@ class ImagesetMetaData:
             self.set_midjourney_data()
 
         else:
-            self.data = self.exif
+            # Convert EXIF data to TOML-serializable format
+            self.data = self._make_serializable(self.exif)
         
             
 if __name__ == "__main__":

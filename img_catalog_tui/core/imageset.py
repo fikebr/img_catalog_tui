@@ -20,9 +20,12 @@ class Imageset():
         self.imageset_name = imageset_name
         self.imageset_folder = self._get_imageset_folder()
         self.toml = ImagesetToml(imageset_folder=self.imageset_folder)
+        # If status is already archive but folder not under _archive, move it now
+        self._ensure_archive_location()
         self.files = self._get_imageset_files() # dict{filename: dict{fullpath, ext, tags}}
 
         self.get_exif_data()
+        _ = self.orig_image
         
 
     ### properties and setters
@@ -31,6 +34,8 @@ class Imageset():
     # edits
     # status
     # needs
+    
+        
     
     def _validate_comma_separated_values(self, value: str, valid_options: list[str], field_name: str) -> None:
         """Validate comma-separated values against config options."""
@@ -207,6 +212,9 @@ class Imageset():
             raise ValueError(error_msg)
         
         self.toml.set(key="status", value=value)
+        
+        if value == "archive":
+            self.archive_imageset()
 
     @property
     def needs(self) -> str:
@@ -340,6 +348,80 @@ class Imageset():
         
         return data
 
+    def archive_imageset(self) -> str:
+        """Archive the imageset by moving it to the archive folder and updating status."""
+        
+        try:
+            
+            # Get archive folder path: {self.folder_name}/_archive/
+            archive_folder = os.path.join(self.folder_name, "_archive")
+            
+            # Create archive folder if it doesn't exist
+            if not os.path.exists(archive_folder):
+                logging.info(f"Creating archive folder: {archive_folder}")
+                os.makedirs(archive_folder, exist_ok=True)
+            
+            # Get the new path for the imageset in the archive
+            new_imageset_path = os.path.join(archive_folder, self.imageset_name)
+            
+            # Check if target already exists
+            if os.path.exists(new_imageset_path):
+                error_msg = f"Archive target already exists: {new_imageset_path}"
+                logging.error(error_msg)
+                raise FileExistsError(error_msg)
+            
+            # Move the imageset folder to the archive
+            logging.info(f"Moving imageset from {self.imageset_folder} to {new_imageset_path}")
+            os.rename(self.imageset_folder, new_imageset_path)
+            
+            # Update the imageset_folder path to reflect the new location
+            self.imageset_folder = new_imageset_path
+            # Reinitialize toml with new location
+            self.toml = ImagesetToml(imageset_folder=self.imageset_folder)
+            
+            logging.info(f"Successfully archived imageset: {self.imageset_name}")
+            return new_imageset_path
+            
+        except Exception as e:
+            logging.error(f"Error archiving imageset {self.imageset_name}: {e}", exc_info=True)
+            raise
+        
+    def _ensure_archive_location(self) -> None:
+        """Ensure archived imagesets live under the _archive folder."""
+        
+        try:
+            # Only act if status is already 'archive'
+            if self.status != "archive":
+                return
+            
+            archive_folder = os.path.join(self.folder_name, "_archive")
+            current_parent = os.path.normpath(os.path.dirname(self.imageset_folder))
+            archive_parent = os.path.normpath(archive_folder)
+            
+            # If already under the archive folder, nothing to do
+            if current_parent == archive_parent:
+                return
+            
+            # Create archive folder if needed
+            if not os.path.exists(archive_folder):
+                logging.info(f"Creating archive folder: {archive_folder}")
+                os.makedirs(archive_folder, exist_ok=True)
+            
+            target_path = os.path.join(archive_folder, self.imageset_name)
+            
+            if os.path.exists(target_path):
+                error_msg = f"Archive target already exists: {target_path}"
+                logging.error(error_msg)
+                raise FileExistsError(error_msg)
+            
+            logging.info(f"Relocating archived imageset from {self.imageset_folder} to {target_path}")
+            os.rename(self.imageset_folder, target_path)
+            self.imageset_folder = target_path
+            # Reinitialize toml to point at new folder
+            self.toml = ImagesetToml(imageset_folder=self.imageset_folder)
+        except Exception as e:
+            logging.error(f"Error ensuring archive location for {self.imageset_name}: {e}", exc_info=True)
+            raise
         
     def get_exif_data(self):
         """get the exif data and set into self.toml"""
@@ -400,7 +482,7 @@ class Imageset():
         
         tags = self.config.get_file_tags()
         
-        imageset_folder = os.path.join(self.folder_name, self.imageset_name)
+        imageset_folder = self.imageset_folder
         
         try:
             if not os.path.exists(imageset_folder):

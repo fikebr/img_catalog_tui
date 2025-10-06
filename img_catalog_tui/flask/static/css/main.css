@@ -8,6 +8,7 @@
     --muted: #1f2937;
     --border: #334155;
     --text: #e5e7eb;
+    --text-muted: #9ca3af;
     --accent: #60a5fa;
     --accent-2: #22d3ee;
     --good: #34d399;
@@ -131,6 +132,44 @@ footer {
 /* =======================
    NAVIGATION
    ======================= */
+/* Breadcrumb Navigation */
+.breadcrumb-nav {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: var(--space-sm) var(--space-md);
+    margin-bottom: var(--space-md);
+    position: sticky;
+    top: 72px; /* Height of the main header */
+    z-index: 45;
+    backdrop-filter: blur(6px);
+}
+
+.breadcrumb-nav .breadcrumb-items {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: 0.875rem;
+    color: var(--text);
+}
+
+.breadcrumb-nav a {
+    color: var(--accent);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.breadcrumb-nav a:hover {
+    color: var(--accent-2);
+}
+
+.breadcrumb-nav .breadcrumb-separator {
+    color: var(--text-muted);
+}
+
+.breadcrumb-nav .breadcrumb-current {
+    color: var(--text);
+    font-weight: 500;
+}
 .nav-links {
     display: flex;
     gap: var(--space-md);

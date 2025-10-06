@@ -7,11 +7,15 @@ def register_routes(app):
 
     # routes to serve html
     app.add_url_rule('/', endpoint='index', view_func=views_html.index)
+
+    # Folder
     app.add_url_rule('/folders', endpoint='folders', view_func=views_html.folders)
     app.add_url_rule('/folder/<string:foldername>', endpoint='folder', view_func=views_html.folder) 
-    # app.add_url_rule('/folder/<string:foldername>/review/<string:review_type>', endpoint='reviews', view_func=views_html.reviews)
     app.add_url_rule('/folder/<string:foldername>/batch_update', endpoint='batch_update_form', view_func=views_html.batch_update_form)
+
+    # Imageset
     app.add_url_rule('/imageset/<string:foldername>/<string:imageset_name>', endpoint='imageset', view_func=views_html.imageset)
+    # app.add_url_rule('/imageset/<string:foldername>/<string:imageset_name/toml>', endpoint='imageset_toml', view_func=views_html.imageset_toml)
 
     # utility routes
     app.add_url_rule('/health', endpoint='health', view_func=views_html.health)
