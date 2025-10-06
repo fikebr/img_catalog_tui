@@ -4,9 +4,6 @@
 file_tags = ["orig", "thumb", "v2", "v3", "v4", "v5", "up2", "up3", "up4", "up6", "interview", "raw"]
 img_file_ext = ["png", "jpg", "jpeg", "bmp"]
 
-ext_type_dict
-
-
 # selection options
 status = ["new", "keep", "edit", "working", "posted", "archive"]
 edits = ["creative", "photoshop", "rmbg", "up"]

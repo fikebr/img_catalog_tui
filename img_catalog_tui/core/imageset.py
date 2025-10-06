@@ -504,8 +504,24 @@ class Imageset():
                     if f"_{tag}_" in file_name or f"_{tag}." in file_name:
                         file_tags.append(tag)
                         
+                # decide on a file_type
+                file_type = "other"
+                
+                if file_ext == ".toml":
+                    file_type = "toml"
+
+                if file_ext == ".txt":
+                    file_type = "text"
+
+                if "interview" in file_name:
+                    file_type = "interview"
+                    
+                if file_ext[1:] in self.config.config_data["img_file_ext"]:
+                    file_type = "image"
+                
+                        
                 # load the file into the files dict
-                files[file_name] = {"fullpath": file_path, "ext": file_ext, "tags": file_tags}
+                files[file_name] = {"fullpath": file_path, "ext": file_ext, "tags": file_tags, "file_type": file_type}
                         
             return files
             
