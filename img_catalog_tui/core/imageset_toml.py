@@ -16,6 +16,16 @@ class ImagesetToml:
         self._data  = {}
         self._validate_toml_file()
         
+    def _find_key_case_insensitive(self, data: dict, key: str) -> str | None:
+        """Finds the actual key in a dict matching case-insensitively."""
+        if not isinstance(key, str):
+            return None
+        lowered = key.lower()
+        for existing_key in data.keys():
+            if isinstance(existing_key, str) and existing_key.lower() == lowered:
+                return existing_key
+        return None
+    
     def _validate_folder(self, imageset_folder: str) -> str:
         """Validates that the imageset folder exists and is a directory."""
         if not os.path.exists(imageset_folder):
@@ -145,27 +155,31 @@ class ImagesetToml:
         try:
             # If section is null and key is provided, get top-level item
             if not section and key:
-                if key in self._data:
-                    return str(self._data[key])
+                actual_top_key = self._find_key_case_insensitive(self._data, key)
+                if actual_top_key is not None:
+                    return str(self._data[actual_top_key])
                 else:
                     return ""
             
             # If both section and key are provided, get item from section
             elif section and key:
-                if section in self._data and isinstance(self._data[section], dict):
-                    if key in self._data[section]:
-                        return str(self._data[section][key])
-                    else:
-                        return ""
-                else:
+                actual_section = self._find_key_case_insensitive(self._data, section)
+                if actual_section is None:
                     return ""
+                section_data = self._data[actual_section]
+                if not isinstance(section_data, dict):
+                    return ""
+                actual_key = self._find_key_case_insensitive(section_data, key)
+                if actual_key is None:
+                    return ""
+                return str(section_data[actual_key])
             
             # If only section is provided, return section data
             elif section:
-                if section in self._data:
-                    return self._data[section]
-                else:
-                    return {}
+                actual_section = self._find_key_case_insensitive(self._data, section)
+                if actual_section is not None:
+                    return self._data[actual_section]
+                return {}
             
             # If neither section nor key provided, return all data
             else:
@@ -181,21 +195,30 @@ class ImagesetToml:
             if section and not key:
                 if not isinstance(value, dict):
                     raise ValueError("When setting a section without a key, value must be a dict")
-                self._data[section] = value
+                existing_section = self._find_key_case_insensitive(self._data, section)
+                target_section_key = existing_section if existing_section is not None else section
+                self._data[target_section_key] = value
                 
             # Scenario 2: section and key, value can be str, int, or bool
             elif section and key:
                 if not isinstance(value, (str, int, bool)):
                     raise ValueError("When setting a section key, value must be str, int, or bool")
-                if section not in self._data:
-                    self._data[section] = {}
-                if not isinstance(self._data[section], dict):
+                existing_section = self._find_key_case_insensitive(self._data, section)
+                target_section_key = existing_section if existing_section is not None else section
+                if target_section_key not in self._data:
+                    self._data[target_section_key] = {}
+                if not isinstance(self._data[target_section_key], dict):
                     raise ValueError(f"Section '{section}' exists but is not a dict")
-                self._data[section][key] = value
+                section_dict = self._data[target_section_key]
+                existing_key = self._find_key_case_insensitive(section_dict, key)
+                target_key = existing_key if existing_key is not None else key
+                section_dict[target_key] = value
                 
             # Scenario 3: no section, key and value at top level
             elif not section and key:
-                self._data[key] = value
+                existing_top_key = self._find_key_case_insensitive(self._data, key)
+                target_key = existing_top_key if existing_top_key is not None else key
+                self._data[target_key] = value
                 
             else:
                 raise ValueError("Invalid arguments: must provide either (section only with dict value), (section and key with any value), or (key and value only)")

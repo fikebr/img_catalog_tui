@@ -180,6 +180,15 @@ class Imageset():
 
 
     @property
+    def prompt(self) -> str:
+        source = self.toml.get(key="source")
+        if not source:
+            return ""
+        # Use case-insensitive access for the "prompt" key within the source section
+        prompt_value = self.toml.get(section=source, key="prompt")
+        return prompt_value if isinstance(prompt_value, str) else str(prompt_value)
+
+    @property
     def edits(self) -> str:
         return self.toml.get(key="edits")
         
@@ -317,18 +326,11 @@ class Imageset():
 
     def to_dict(self):
         
-        biz = self.toml.get("biz")
-        source_data = self.toml.get("source")
-        source = source_data if isinstance(source_data, str) else ""
-        source_section = {}
+        biz = self.toml.get(section="biz")
         
-        if source:
-            source_section = self.toml.get(source)
+        
+        
             
-        prompt = ""
-        
-        if source_section and isinstance(source_section, dict):
-            prompt = source_section.get("prompt", "")
             
         data = {
             "imageset_name": self.imageset_name,
@@ -336,9 +338,9 @@ class Imageset():
             "status": self.status,
             "edits": self.edits,
             "needs": self.needs,
-            "posted_to": biz.get("posted_to", "") if isinstance(biz, dict) else "",
-            "prompt": prompt,
-            "source": source,
+            "posted_to": self.posted_to,
+            "prompt": self.prompt,
+            "source": self.toml.get(key="source"),
             "files": self.files,
             "cover_image": self.cover_image
         }
