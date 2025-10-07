@@ -109,12 +109,22 @@ def folder(foldername: str) -> str:
         folder_data = {
             'foldername': folder_obj.foldername,
             'imageset_count': len(folder_obj.imagesets),
-            'imagesets': {}
+            'imagesets': {},
+            'counts': {
+                'status': {}
+            }
         }
         
-        # Add detailed imageset information
+        # Add detailed imageset information and count by status
         for imageset_name, imageset_obj in folder_obj.imagesets.items():
             folder_data['imagesets'][imageset_name] = imageset_obj.to_dict()
+            
+            # Count imagesets by status
+            status = imageset_obj.status
+            if status in folder_data['counts']['status']:
+                folder_data['counts']['status'][status] += 1
+            else:
+                folder_data['counts']['status'][status] = 1
         
         return render_template('folder.html', 
                              title=f"Folder: {foldername}", 

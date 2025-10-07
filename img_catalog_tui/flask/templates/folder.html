@@ -22,21 +22,20 @@
                     <div style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">Total Imagesets</div>
                 </div>
             </div>
+        </div>
+        
+        {% if folder_data.counts.status %}
+        <div class="grid grid-3" style="margin-top: var(--space-md);">
+            {% for status, count in folder_data.counts.status.items() %}
             <div class="card">
                 <div class="card-content text-center">
-                    <div style="font-size: 2rem; font-weight: bold; color: var(--accent);">
-                        {% set new_count = namespace(value=0) %}
-                        {% for imageset_name, imageset in folder_data.imagesets.items() %}
-                            {% if imageset.status == "new" or imageset.status == "" %}
-                                {% set new_count.value = new_count.value + 1 %}
-                            {% endif %}
-                        {% endfor %}
-                        {{ new_count.value }}
-                    </div>
-                    <div style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">New Imagesets</div>
+                    <div style="font-size: 2rem; font-weight: bold; color: var(--accent);">{{ count }}</div>
+                    <div style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">{{ status or 'new' }}</div>
                 </div>
             </div>
+            {% endfor %}
         </div>
+        {% endif %}
         
         <div style="margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid var(--border);">
             <div style="display: flex; gap: var(--space-md); flex-wrap: wrap;">

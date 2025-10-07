@@ -222,7 +222,7 @@ function copyFullPath(btn) {
 
 function copyFolderPath() {
     try {
-        const folderPath = '{{ imageset_data.imageset_folder if imageset_data else "" }}';
+        const folderPath = {{ (imageset_data.imageset_folder if imageset_data else "") | tojson }};
         if (!folderPath) { return; }
         navigator.clipboard.writeText(folderPath)
             .then(() => {

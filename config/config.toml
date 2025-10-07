@@ -6,8 +6,8 @@ img_file_ext = ["png", "jpg", "jpeg", "bmp"]
 
 # selection options
 status = ["new", "keep", "edit", "working", "posted", "archive"]
-edits = ["creative", "photoshop", "rmbg", "up"]
-needs = ["upscale", "vector", "orig", "thumbnail", "interview", "creativeup"]
+edits = ["creative", "photoshop", "rmbg", "up", "vector"]
+needs = ["orig", "thumbnail", "interview", "mockups"]
 good_for = ["stock", "rb", "poster"]
 posted_to = ["stock", "rb", "tp", "faa", "etsy"]
 review_types = ["status", "edits", "needs", "good_for", "posted_to"]
