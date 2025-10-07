@@ -181,8 +181,11 @@
             <div class="section" style="margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid var(--border);">
                 <div style="display: flex; gap: var(--space-md); flex-wrap: wrap;">
                     <a href="/imageset/{{ foldername }}/{{ imageset_name }}/edit" class="btn btn-primary" target="_blank">
-                        ✏️ Edit Imageset
+                        ✏️ Edit
                     </a>
+                    <button class="btn btn-secondary" onclick="copyFolderPath()">
+                        📁 Copy Folder
+                    </button>
                     <a href="/api/imageset/{{ foldername }}/{{ imageset_name }}" class="btn btn-secondary" target="_blank">
                         📄 View Raw API Data
                     </a>
@@ -208,6 +211,26 @@ function copyFullPath(btn) {
                 // Optional lightweight UX feedback
                 btn.textContent = 'Copied!';
                 setTimeout(() => { btn.textContent = 'Copy Full Path'; }, 1200);
+            })
+            .catch((err) => {
+                console.error('Clipboard write failed:', err);
+            });
+    } catch (e) {
+        console.error('Copy failed:', e);
+    }
+}
+
+function copyFolderPath() {
+    try {
+        const folderPath = '{{ foldername }}';
+        if (!folderPath) { return; }
+        navigator.clipboard.writeText(folderPath)
+            .then(() => {
+                // Optional lightweight UX feedback
+                const btn = event.target;
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(() => { btn.textContent = originalText; }, 1200);
             })
             .catch((err) => {
                 console.error('Clipboard write failed:', err);
