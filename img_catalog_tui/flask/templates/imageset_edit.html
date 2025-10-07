@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+{% if error %}
+    <div class="error-message">
+        {{ error }}
+    </div>
+{% else %}
+    <div class="section">
+        <h2 class="section-title">Edit Imageset</h2>
+        <div class="folder-path" style="font-family: var(--font-mono); background: var(--muted); padding: var(--space-sm); border-radius: var(--radius-sm); margin-bottom: var(--space-md); word-break: break-all;">
+            {{ foldername }} / {{ imageset_name }}
+        </div>
+        
+        {% if imageset_data %}
+            <form method="POST" action="/api/imageset/{{ foldername }}/{{ imageset_name }}/update" style="max-width: 800px;">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 style="margin: 0; color: var(--accent); font-size: 1.1rem;">📝 Edit Metadata</h3>
+                    </div>
+                    <div class="card-content">
+                        <div style="display: grid; gap: var(--space-md);">
+                            
+                            <!-- Status Field -->
+                            <div class="form-group">
+                                <label for="status" style="display: block; font-weight: 600; margin-bottom: var(--space-xs); color: var(--text);">
+                                    Status
+                                </label>
+                                <select id="status" name="status" class="form-control" style="width: 100%; padding: var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text);">
+                                    <option value="">Select status...</option>
+                                    {% for option in config_options.status %}
+                                        <option value="{{ option }}" {% if imageset_data.status == option %}selected{% endif %}>{{ option }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <!-- Edits Field -->
+                            <div class="form-group">
+                                <label for="edits" style="display: block; font-weight: 600; margin-bottom: var(--space-xs); color: var(--text);">
+                                    Edits
+                                </label>
+                                <input type="text" 
+                                       id="edits" 
+                                       name="edits" 
+                                       value="{{ imageset_data.edits or '' }}" 
+                                       placeholder="Enter comma-separated values (e.g., creative, photoshop)"
+                                       class="form-control"
+                                       style="width: 100%; padding: var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text);">
+                                <div style="font-size: 0.75rem; color: var(--text); opacity: 0.7; margin-top: var(--space-xs);">
+                                    Available options: {{ config_options.edits | join(', ') }}
+                                </div>
+                            </div>
+                            
+                            <!-- Needs Field -->
+                            <div class="form-group">
+                                <label for="needs" style="display: block; font-weight: 600; margin-bottom: var(--space-xs); color: var(--text);">
+                                    Needs
+                                </label>
+                                <input type="text" 
+                                       id="needs" 
+                                       name="needs" 
+                                       value="{{ imageset_data.needs or '' }}" 
+                                       placeholder="Enter comma-separated values (e.g., upscale, vector)"
+                                       class="form-control"
+                                       style="width: 100%; padding: var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text);">
+                                <div style="font-size: 0.75rem; color: var(--text); opacity: 0.7; margin-top: var(--space-xs);">
+                                    Available options: {{ config_options.needs | join(', ') }}
+                                </div>
+                            </div>
+                            
+                            <!-- Good For Field -->
+                            <div class="form-group">
+                                <label for="good_for" style="display: block; font-weight: 600; margin-bottom: var(--space-xs); color: var(--text);">
+                                    Good For
+                                </label>
+                                <input type="text" 
+                                       id="good_for" 
+                                       name="good_for" 
+                                       value="{{ imageset_data.good_for or '' }}" 
+                                       placeholder="Enter comma-separated values (e.g., stock, rb, poster)"
+                                       class="form-control"
+                                       style="width: 100%; padding: var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text);">
+                                <div style="font-size: 0.75rem; color: var(--text); opacity: 0.7; margin-top: var(--space-xs);">
+                                    Available options: {{ config_options.good_for | join(', ') }}
+                                </div>
+                            </div>
+                            
+                            <!-- Posted To Field -->
+                            <div class="form-group">
+                                <label for="posted_to" style="display: block; font-weight: 600; margin-bottom: var(--space-xs); color: var(--text);">
+                                    Posted To
+                                </label>
+                                <input type="text" 
+                                       id="posted_to" 
+                                       name="posted_to" 
+                                       value="{{ imageset_data.posted_to or '' }}" 
+                                       placeholder="Enter comma-separated values (e.g., stock, rb, tp)"
+                                       class="form-control"
+                                       style="width: 100%; padding: var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text);">
+                                <div style="font-size: 0.75rem; color: var(--text); opacity: 0.7; margin-top: var(--space-xs);">
+                                    Available options: {{ config_options.posted_to | join(', ') }}
+                                </div>
+                            </div>
+                            
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Form Actions -->
+                <div class="section" style="margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid var(--border);">
+                    <div style="display: flex; gap: var(--space-md); flex-wrap: wrap;">
+                        <button type="submit" class="btn btn-primary">
+                            💾 Save Changes
+                        </button>
+                        <a href="/imageset/{{ foldername }}/{{ imageset_name }}" class="btn btn-secondary">
+                            ❌ Cancel
+                        </a>
+                        <a href="/folder/{{ foldername }}" class="btn btn-secondary">
+                            ← Back to Folder
+                        </a>
+                    </div>
+                </div>
+            </form>
+        {% endif %}
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+// Add some basic form validation and UX improvements
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const inputs = form.querySelectorAll('input[type="text"]');
+    
+    // Add visual feedback for form changes
+    inputs.forEach(input => {
+        const originalValue = input.value;
+        input.addEventListener('input', function() {
+            if (this.value !== originalValue) {
+                this.style.borderColor = 'var(--accent)';
+            } else {
+                this.style.borderColor = 'var(--border)';
+            }
+        });
+    });
+    
+    // Add confirmation before leaving if form has changes
+    form.addEventListener('submit', function(e) {
+        const hasChanges = Array.from(inputs).some(input => {
+            const originalValue = input.getAttribute('value') || '';
+            return input.value !== originalValue;
+        });
+        
+        if (hasChanges) {
+            if (!confirm('Are you sure you want to save these changes?')) {
+                e.preventDefault();
+            }
+        }
+    });
+    
+    // Add keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            form.submit();
+        }
+        if (e.key === 'Escape') {
+            window.location.href = '/imageset/{{ foldername }}/{{ imageset_name }}';
+        }
+    });
+});
+</script>
+{% endblock %}

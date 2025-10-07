@@ -76,6 +76,7 @@ def imageset(foldername: str, imageset: str):
         
         # Test if folder path exists on filesystem and create folder object
         folder_obj = ImagesetFolder(config=config, foldername=folder_path)
+        imageset_obj = Imageset()
         
         # Test if imageset exists in folder
         if imageset not in folder_obj.imagesets:
@@ -225,6 +226,98 @@ def batch_update(foldername: str):
         return jsonify({"error": str(e)}), 404
     except Exception as e:
         logging.error(f"Error in batch update for folder {foldername}: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+
+def imageset_update(foldername: str, imageset: str):
+    """Update imageset metadata fields."""
+    try:
+        # Validate request method
+        if request.method != 'POST':
+            return jsonify({"error": "Method not allowed"}), 405
+        
+        # Get form data from request
+        data = request.form
+        if not data:
+            return jsonify({"error": "No form data provided"}), 400
+        
+        # Validate foldername exists in Folders registry
+        folders_obj = Folders()
+        if foldername not in folders_obj.folders:
+            logging.warning(f"Folder '{foldername}' not found in registry")
+            return jsonify({"error": f"Folder '{foldername}' not found"}), 404
+        
+        folder_path = folders_obj.folders[foldername]
+        
+        # Create folder object and validate imageset exists
+        folder_obj = ImagesetFolder(config=config, foldername=folder_path)
+        if imageset not in folder_obj.imagesets:
+            logging.warning(f"Imageset '{imageset}' not found in folder '{foldername}'")
+            return jsonify({"error": f"Imageset '{imageset}' not found in folder '{foldername}'"}), 404
+        
+        # Get the imageset object
+        imageset_obj = folder_obj.imagesets[imageset]
+        
+        # Track which fields were updated
+        updated_fields = []
+        
+        # Update each field if provided
+        if 'status' in data:
+            try:
+                imageset_obj.status = data['status']
+                updated_fields.append('status')
+                logging.info(f"Updated status for {imageset}: {data['status']}")
+            except ValueError as e:
+                return jsonify({"error": f"Invalid status value: {str(e)}"}), 400
+        
+        if 'edits' in data:
+            try:
+                imageset_obj.edits = data['edits']
+                updated_fields.append('edits')
+                logging.info(f"Updated edits for {imageset}: {data['edits']}")
+            except ValueError as e:
+                return jsonify({"error": f"Invalid edits value: {str(e)}"}), 400
+        
+        if 'needs' in data:
+            try:
+                imageset_obj.needs = data['needs']
+                updated_fields.append('needs')
+                logging.info(f"Updated needs for {imageset}: {data['needs']}")
+            except ValueError as e:
+                return jsonify({"error": f"Invalid needs value: {str(e)}"}), 400
+        
+        if 'good_for' in data:
+            try:
+                imageset_obj.good_for = data['good_for']
+                updated_fields.append('good_for')
+                logging.info(f"Updated good_for for {imageset}: {data['good_for']}")
+            except ValueError as e:
+                return jsonify({"error": f"Invalid good_for value: {str(e)}"}), 400
+        
+        if 'posted_to' in data:
+            try:
+                imageset_obj.posted_to = data['posted_to']
+                updated_fields.append('posted_to')
+                logging.info(f"Updated posted_to for {imageset}: {data['posted_to']}")
+            except ValueError as e:
+                return jsonify({"error": f"Invalid posted_to value: {str(e)}"}), 400
+        
+        # Return success response
+        response_data = {
+            "message": "Imageset updated successfully",
+            "imageset": imageset,
+            "folder": foldername,
+            "updated_fields": updated_fields
+        }
+        
+        logging.info(f"Successfully updated imageset {imageset} in folder {foldername}: {', '.join(updated_fields)}")
+        return jsonify(response_data), 200
+        
+    except FileNotFoundError as e:
+        logging.error(f"File not found in imageset update: {e}")
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        logging.error(f"Error updating imageset {imageset} in folder {foldername}: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
 
 

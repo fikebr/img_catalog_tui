@@ -117,38 +117,61 @@ class ImagesetToml:
     
     def _ensure_required_keys(self) -> None:
         """Ensures all required keys exist in the TOML data with default values."""
-        default_values = {
-            "imageset": self.imageset_name,
-            "status": "new",
-            "edits": "",
-            "needs": ""
-        }
-        
-        keys_added = []
-        for key, default_value in default_values.items():
-            if key not in self._data:
-                self._data[key] = default_value
-                keys_added.append(key)
-        
-        # Handle source detection based on sections
-        if "source" not in self._data:
-            self._data["source"] = "unknown"
-            keys_added.append("source")
-        
-        # If source is unknown and we have fooocus or midjourney sections, update source
-        if self._data.get("source") == "unknown":
-            if "fooocus" in self._data:
-                self._data["source"] = "fooocus"
-                logging.info(f"Set source to 'fooocus' based on fooocus section in: {self.toml_file}")
-            elif "midjourney" in self._data:
-                self._data["source"] = "midjourney"
-                logging.info(f"Set source to 'midjourney' based on midjourney section in: {self.toml_file}")
-        
-        # Save the file if any keys were added or source was updated
-        if keys_added or self._data.get("source") in ["fooocus", "midjourney"]:
+        try:
+            default_values = {
+                "imageset": self.imageset_name,
+                "status": "new",
+                "edits": "",
+                "needs": ""
+            }
+            
+            keys_added = []
+            source_updated = False
+            
+            # Add missing default keys
+            for key, default_value in default_values.items():
+                if key not in self._data:
+                    self._data[key] = default_value
+                    keys_added.append(key)
+            
+            # Handle source detection based on sections
+            if "source" not in self._data:
+                self._data["source"] = "unknown"
+                keys_added.append("source")
+            
+            # Auto-detect source from existing sections
+            detected_source = self._detect_source_from_sections()
+            if detected_source and self._data.get("source") == "unknown":
+                self._data["source"] = detected_source
+                source_updated = True
+                logging.info(f"Auto-detected source as '{detected_source}' in: {self.toml_file}")
+            
+            # Save the file if any changes were made
+            if keys_added or source_updated:
+                self._save_toml_file()
+                if keys_added:
+                    logging.info(f"Added missing keys {keys_added} to TOML file: {self.toml_file}")
+                    
+        except Exception as e:
+            logging.error(f"Error ensuring required keys in {self.toml_file}: {e}")
+            raise
+    
+    def _detect_source_from_sections(self) -> str | None:
+        """Detects the source type based on existing sections in the TOML data."""
+        if "fooocus" in self._data:
+            return "fooocus"
+        elif "midjourney" in self._data:
+            return "midjourney"
+        return None
+    
+    def _save_toml_file(self) -> None:
+        """Saves the TOML data to file with error handling."""
+        try:
             with open(self.toml_file, 'wb') as f:
                 tomli_w.dump(self._data, f)
-            logging.info(f"Added missing keys {keys_added} to TOML file: {self.toml_file}")
+        except Exception as e:
+            logging.error(f"Failed to save TOML file {self.toml_file}: {e}")
+            raise
     
     def get(self, section: str="", key: str="") -> dict | str:
         """Retrieves data from a specific section or returns all data."""
