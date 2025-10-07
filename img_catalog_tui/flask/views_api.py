@@ -66,8 +66,16 @@ def review_new(foldername: str):
 def imageset(foldername: str, imageset: str):
     """Return imageset information as JSON."""
     try:
-        # Create imageset object directly
-        imageset_obj = Imageset(config=config, folder_name=foldername, imageset_name=imageset)
+        # Get full folder path from registry
+        folders_obj = Folders()
+        if foldername not in folders_obj.folders:
+            logging.warning(f"Folder '{foldername}' not found in registry")
+            return jsonify({"error": f"Folder '{foldername}' not found"}), 404
+        
+        folder_path = folders_obj.folders[foldername]
+        
+        # Create imageset object directly with full folder path
+        imageset_obj = Imageset(config=config, folder_name=folder_path, imageset_name=imageset)
         
         return jsonify(imageset_obj.to_dict())
         
