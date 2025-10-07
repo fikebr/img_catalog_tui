@@ -222,7 +222,7 @@ function copyFullPath(btn) {
 
 function copyFolderPath() {
     try {
-        const folderPath = '{{ foldername }}';
+        const folderPath = '{{ imageset_data.imageset_folder if imageset_data else "" }}';
         if (!folderPath) { return; }
         navigator.clipboard.writeText(folderPath)
             .then(() => {
