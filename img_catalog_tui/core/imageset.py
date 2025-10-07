@@ -339,6 +339,7 @@ class Imageset():
             "edits": self.edits,
             "needs": self.needs,
             "posted_to": self.posted_to,
+            "good_for": self.good_for,
             "prompt": self.prompt,
             "source": self.toml.get(key="source"),
             "files": self.files,

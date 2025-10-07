@@ -6,15 +6,27 @@
 
 
 {% block content %}
+<!-- Breadcrumb Navigation -->
+<nav class="breadcrumb-nav">
+    <div class="breadcrumb-items">
+        <a href="/">Home</a>
+        <span class="breadcrumb-separator">→</span>
+        <a href="/folders">Folders</a>
+        <span class="breadcrumb-separator">→</span>
+        <a href="/folder/{{ foldername }}">{{ foldername }}</a>
+        <span class="breadcrumb-separator">→</span>
+        <span class="breadcrumb-current">{{ imageset_name }}</span>
+    </div>
+</nav>
+
 {% if error %}
     <div class="error-message">
         {{ error }}
     </div>
 {% else %}
     <div class="section">
-        <h2 class="section-title">Imageset Information</h2>
         <div class="folder-path" style="font-family: var(--font-mono); background: var(--muted); padding: var(--space-sm); border-radius: var(--radius-sm); margin-bottom: var(--space-md); word-break: break-all;">
-            {{ foldername }} / {{ imageset_name }}
+            {{ imageset_data.prompt or 'No prompt available' }}
         </div>
         
         {% if imageset_data %}
@@ -168,7 +180,7 @@
             <!-- Actions Section -->
             <div class="section" style="margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid var(--border);">
                 <div style="display: flex; gap: var(--space-md); flex-wrap: wrap;">
-                    <a href="/imageset/{{ foldername }}/{{ imageset_name }}/edit" class="btn btn-primary">
+                    <a href="/imageset/{{ foldername }}/{{ imageset_name }}/edit" class="btn btn-primary" target="_blank">
                         ✏️ Edit Imageset
                     </a>
                     <a href="/api/imageset/{{ foldername }}/{{ imageset_name }}" class="btn btn-secondary" target="_blank">

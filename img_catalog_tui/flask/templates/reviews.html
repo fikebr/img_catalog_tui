@@ -19,7 +19,9 @@
         <span class="breadcrumb-separator">→</span>
         <a href="/folder/{{ foldername }}">{{ foldername }}</a>
         <span class="breadcrumb-separator">→</span>
-        <span class="breadcrumb-current">Reviews</span>
+        <a href="/review/{{ foldername }}/list">Reviews</a>
+        <span class="breadcrumb-separator">→</span>
+        <span class="breadcrumb-current">{{ name }}</span>
     </div>
 </nav>
 
@@ -83,20 +85,73 @@
               {% endif %}
               
               <div class="card-meta">
-                <h3>Details</h3>
-                <p><strong>Status:</strong> <span class="status {{ imageset_data.status or 'new' }}">{{ imageset_data.status or 'new' }}</span></p>
-                <p><strong>Files:</strong> {{ (imageset_data.files | length) if imageset_data.files else 0 }}</p>
-                {% if imageset_data.prompt %}
-                <p><strong>Prompt:</strong> {{ imageset_data.prompt }}</p>
+                
+                <!-- Status & Files Section -->
+                <div class="meta-section">
+                  <h4 class="meta-section-title">Details</h4>
+                  <div class="meta-row">
+                    <span class="meta-label">Status:</span>
+                    <span class="status {{ imageset_data.status or 'new' }}">{{ imageset_data.status or 'new' }}</span>
+                  </div>
+                  <div class="meta-row">
+                    <span class="meta-label">Files:</span>
+                    <span class="meta-value">{{ (imageset_data.files | length) if imageset_data.files else 0 }}</span>
+                  </div>
+                </div>
+
+                <!-- Content Information -->
+                {% if imageset_data.prompt or imageset_data.source %}
+                <div class="meta-section">
+                  <h4 class="meta-section-title">Content</h4>
+                  {% if imageset_data.prompt %}
+                  <div class="meta-row">
+                    <span class="meta-label">Prompt:</span>
+                    <span class="meta-value">{{ imageset_data.prompt }}</span>
+                  </div>
+                  {% endif %}
+                  {% if imageset_data.source %}
+                  <div class="meta-row">
+                    <span class="meta-label">Source:</span>
+                    <span class="meta-value">{{ imageset_data.source }}</span>
+                  </div>
+                  {% endif %}
+                </div>
                 {% endif %}
-                {% if imageset_data.source %}
-                <p><strong>Source:</strong> {{ imageset_data.source }}</p>
+
+                <!-- Workflow Information -->
+                {% if imageset_data.edits or imageset_data.needs or imageset_data.good_for %}
+                <div class="meta-section">
+                  <h4 class="meta-section-title">Workflow</h4>
+                  {% if imageset_data.edits %}
+                  <div class="meta-row">
+                    <span class="meta-label">Edits:</span>
+                    <span class="meta-value">{{ imageset_data.edits }}</span>
+                  </div>
+                  {% endif %}
+                  {% if imageset_data.needs %}
+                  <div class="meta-row">
+                    <span class="meta-label">Needs:</span>
+                    <span class="meta-value">{{ imageset_data.needs }}</span>
+                  </div>
+                  {% endif %}
+                  {% if imageset_data.good_for %}
+                  <div class="meta-row">
+                    <span class="meta-label">Good for:</span>
+                    <span class="meta-value">{{ imageset_data.good_for }}</span>
+                  </div>
+                  {% endif %}
+                </div>
                 {% endif %}
-                {% if imageset_data.edits %}
-                <p><strong>Edits:</strong> {{ imageset_data.edits }}</p>
-                {% endif %}
-                {% if imageset_data.needs %}
-                <p><strong>Needs:</strong> {{ imageset_data.needs }}</p>
+
+                <!-- Publishing Information -->
+                {% if imageset_data.posted_to %}
+                <div class="meta-section">
+                  <h4 class="meta-section-title">Publishing</h4>
+                  <div class="meta-row">
+                    <span class="meta-label">Posted to:</span>
+                    <span class="meta-value">{{ imageset_data.posted_to }}</span>
+                  </div>
+                </div>
                 {% endif %}
               </div>
             </div>
@@ -121,18 +176,22 @@
 </section>
 
 <!-- Dynamic Carts based on options -->
-<div class="carts">
+<div class="carts" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-md); align-items:start;">
+    <div style="display:flex; justify-content:flex-end; margin-bottom: var(--space-md);">
+        <button id="applyAllBtn" class="btn" style="padding: var(--space-xs) var(--space-sm); font-size: 0.85rem; background: var(--accent); color: white;">Apply All</button>
+    </div>
     {% for option in options %}
     <aside class="cart" id="{{ option }}Cart">
         <div class="cart-header">
             <strong>{{ option.title() }}</strong>
+            <span id="{{ option }}Count" style="color: var(--muted); font-weight: normal;">(0)</span>
             <div style="display: flex; gap: var(--space-xs);">
                 <button id="copy{{ option.title() }}Btn" class="btn" style="padding: var(--space-xs) var(--space-sm); font-size: 0.75rem;">Copy</button>
                 <button id="clear{{ option.title() }}Btn" class="btn" style="padding: var(--space-xs) var(--space-sm); font-size: 0.75rem;">Clear</button>
                 <button id="apply{{ option.title() }}Btn" class="btn" style="padding: var(--space-xs) var(--space-sm); font-size: 0.75rem; background: var(--accent); color: white;">Apply</button>
             </div>
         </div>
-        <div class="cart-items" id="{{ option }}Items"></div>
+        <div class="cart-items" id="{{ option }}Items" style="max-height: 260px; overflow: auto;"></div>
     </aside>
     {% endfor %}
 </div>
@@ -153,9 +212,9 @@
     const loadingStatusEl = $('#loadingStatus');
 
     // Initialize state object with dynamic options
-    const reviewOptions = {{ options | tojson }};
+    const reviewOptions = JSON.parse('{{ options | tojson | safe }}');
     const reviewType = '{{ review_type }}';
-    const reviewAppend = {{ review_obj.append | tojson }};
+    const reviewAppend = JSON.parse('{{ review_obj.append | tojson | safe }}');
     const state = {};
     reviewOptions.forEach(option => {
         state[option] = [];
@@ -184,6 +243,7 @@
       const item=buildCartItem(name,title);
       $("#"+cart+"Items").appendChild(item);
       updateCounts();
+      updateCartCount(cart);
     }
 
     function copyList(cart){
@@ -196,6 +256,7 @@
       state[cart].forEach(name=>{const orig=cardsEl.querySelector(`.review-card[data-imagesetname="${CSS.escape(name)}"]`);if(orig)orig.hidden=false;});
       state[cart]=[];$('#'+cart+'Items').innerHTML='';
       updateCounts();
+      updateCartCount(cart);
     }
 
     async function applyCart(cart) {
@@ -242,6 +303,7 @@
           state[cart] = [];
           $('#' + cart + 'Items').innerHTML = '';
           updateCounts();
+          updateCartCount(cart);
           
           const successMsg = result.failed_count > 0 
             ? `Applied ${result.successful_count}/${result.total_imagesets} (${result.failed_count} failed)`
@@ -263,6 +325,13 @@
       $('#totalCount').textContent = total;
       $('#visibleCount').textContent = visible;
       updateVisibleImagesets();
+    }
+
+    function updateCartCount(cart){
+      const countSpan = $('#'+cart+'Count');
+      if(countSpan){
+        countSpan.textContent = '(' + (state[cart]?.length || 0) + ')';
+      }
     }
 
     function updateVisibleImagesets() {
@@ -383,7 +452,23 @@
         if (copyBtn) copyBtn.onclick = () => copyList(option);
         if (clearBtn) clearBtn.onclick = () => clearCart(option);
         if (applyBtn) applyBtn.onclick = () => applyCart(option);
+        updateCartCount(option);
     });
+
+    // Apply all carts sequentially
+    async function applyAllCarts() {
+      for (const option of reviewOptions) {
+        if (state[option] && state[option].length > 0) {
+          await applyCart(option);
+        }
+      }
+      showToast('All carts applied');
+    }
+
+    const applyAllBtn = $('#applyAllBtn');
+    if (applyAllBtn) {
+      applyAllBtn.onclick = () => applyAllCarts();
+    }
 
     // Keyboard event handler
     console.log('Attaching keyboard event listener...');

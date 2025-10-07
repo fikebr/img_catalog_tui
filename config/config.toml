@@ -43,21 +43,24 @@ menu_config = "config/menu.toml"
 # Review presets - predefined combinations of states, review_type, and options
 [review_presets]
 
-[review_presets.new_status_review]
+[review_presets.new_images]
+name = "New Images"
 states = ["new"]
 review_type = "status" 
 options = ["keep", "archive"]
-description = "Review new images for status decisions"
+description = "New images: Keep or Archive"
 
-[review_presets.edit_workflow]
+[review_presets.edit_tags]
+name = "Edit Tags"
 states = ["keep"]
 review_type = "edits"
 options = ["all"]
 append = true
-description = "Review images that need editing work"
+description = "Edit Tags"
 
-[review_presets.posting_review]
-states = ["working"]
+[review_presets.good_for_review]
+name = "Good For Tags"
+states = ["keep", "edit", "working"]
 review_type = "good_for"
 options = ["stock", "rb", "poster"]
-description = "Review working images for posting decisions"
+description = "Tag Images with Good For tags."

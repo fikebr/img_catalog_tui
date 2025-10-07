@@ -378,10 +378,11 @@ textarea:focus {
 
 .card-meta {
     margin-top: var(--space-md);
+    text-align: left; /* ensure left alignment inside centered parent */
 }
 
 .card-meta h3 {
-    margin: 0 0 var(--space-sm) 0;
+    margin: 0 0 var(--space-md) 0;
     color: var(--accent);
     font-size: 1.1rem;
 }
@@ -390,6 +391,59 @@ textarea:focus {
     margin: var(--space-xs) 0;
     font-size: 0.875rem;
     opacity: 0.8;
+}
+
+/* Meta section organization */
+.meta-section {
+    margin-bottom: var(--space-lg);
+    padding: var(--space-md);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: var(--radius-lg);
+}
+
+.meta-section:last-child {
+    margin-bottom: 0;
+}
+
+.meta-section-title {
+    margin: 0 0 var(--space-sm) 0;
+    color: var(--accent-2);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    opacity: 0.9;
+    text-align: left;
+}
+
+.meta-row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-xs);
+    font-size: 0.875rem;
+}
+
+.meta-row:last-child {
+    margin-bottom: 0;
+}
+
+.meta-label {
+    font-weight: 600;
+    color: var(--text);
+    min-width: 80px;
+    flex-shrink: 0;
+    opacity: 0.9;
+    text-align: left;
+}
+
+.meta-value {
+    color: var(--text);
+    opacity: 0.8;
+    word-break: break-word;
+    flex: 1;
+    text-align: left;
 }
 
 /* Grid Layouts */
