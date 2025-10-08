@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb Navigation -->
+<nav class="breadcrumb-nav">
+    <div class="breadcrumb-items">
+        <a href="/">Home</a>
+        <span class="breadcrumb-separator">→</span>
+        <a href="/folders">Folders</a>
+        <span class="breadcrumb-separator">→</span>
+        <a href="/folder/{{ foldername }}">{{ foldername }}</a>
+        <span class="breadcrumb-separator">→</span>
+        <a href="/imageset/{{ foldername }}/{{ imagesetname }}">{{ imagesetname }}</a>
+        <span class="breadcrumb-separator">→</span>
+        <span class="breadcrumb-current">Interview</span>
+    </div>
+</nav>
+
+{% if error %}
+    <div class="error-message">
+        {{ error }}
+    </div>
+{% else %}
+    <div class="section">
+        <!-- Prompt Section -->
+        <div class="card" style="margin-bottom: var(--space-md);">
+            <div class="card-header">
+                <h3 style="margin: 0; color: var(--accent); font-size: 1.1rem;">💬 Prompt</h3>
+            </div>
+            <div class="card-content">
+                <div class="folder-path" style="font-family: var(--font-mono); background: var(--muted); padding: var(--space-sm); border-radius: var(--radius-sm); word-break: break-all;">
+                    {{ imageset_data.prompt or 'No prompt available' }}
+                </div>
+            </div>
+        </div>
+        
+        {% if imageset_data %}
+            <div class="grid grid-2" style="margin-bottom: var(--space-lg); gap: var(--space-lg);">
+                <!-- Cover Image Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 style="margin: 0; color: var(--accent); font-size: 1.1rem;">🖼️ Cover Image</h3>
+                    </div>
+                    <div class="card-content text-center">
+                        {% if imageset_data.cover_image %}
+                            <div style="margin-bottom: var(--space-md);">
+                                <img src="/images/{{ foldername }}/{{ imagesetname }}/{{ imageset_data.cover_image.split('/')[-1] }}" 
+                                     alt="Cover image for {{ imagesetname }}" 
+                                     style="max-width: 100%; max-height: 300px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+                            </div>
+                            <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text); opacity: 0.7; word-break: break-all;">
+                                {{ imageset_data.cover_image.split('/')[-1] }}
+                            </div>
+                        {% else %}
+                            <div style="padding: var(--space-xl); color: var(--text); opacity: 0.5;">
+                                <div style="font-size: 3rem;">📷</div>
+                                <div style="margin-top: var(--space-sm);">No cover image</div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Interview File Content Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 style="margin: 0; color: var(--accent); font-size: 1.1rem;">📝 Interview Results</h3>
+                    </div>
+                    <div class="card-content">
+                        
+                        {% if interview_file_content %}
+                            <div style="background: var(--muted); padding: var(--space-sm); border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: 0.875rem; white-space: pre-wrap; max-height: 400px; overflow-y: auto;">
+                                {{ interview_file_content or 'Interview file exists but content not loaded' }}
+                            </div>
+                        {% else %}
+                            <div style="padding: var(--space-xl); color: var(--text); opacity: 0.5; text-align: center;">
+                                <div style="font-size: 2rem;">📄</div>
+                                <div style="margin-top: var(--space-sm);">No interview file found</div>
+                                <div style="font-size: 0.875rem; margin-top: var(--space-xs);">Run the interview to generate analysis</div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Interview Files Section -->
+            <div class="section" style="margin-top: var(--space-lg);">
+                <h2 class="section-title">📁 Interview Files</h2>
+                
+                {% set interview_files = [] %}
+                {% for filename, file_info in imageset_data.files.items() %}
+                    {% if file_info.file_type == "interview" %}
+                        {% set _ = interview_files.append((filename, file_info)) %}
+                    {% endif %}
+                {% endfor %}
+                
+                {% if interview_files %}
+                    <div class="files-grid" style="display: grid; gap: var(--space-sm); margin-top: var(--space-md);">
+                        {% for filename, file_info in interview_files %}
+                            <div class="card" style="padding: var(--space-sm);">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <span style="font-family: var(--font-mono); font-size: 0.875rem; word-break: break-all; flex: 1;">{{ filename }}</span>
+                                    <a href="/images/{{ foldername }}/{{ imagesetname }}/{{ filename }}" 
+                                       class="btn btn-secondary" 
+                                       style="margin-left: var(--space-sm); padding: var(--space-xs) var(--space-sm); font-size: 0.75rem;" 
+                                       target="_blank">View</a>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="text-center" style="padding: var(--space-2xl); color: var(--text); opacity: 0.6;">
+                        <p>No interview files found in this imageset.</p>
+                    </div>
+                {% endif %}
+            </div>
+            
+            <!-- Actions Section -->
+            <div class="section" style="margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid var(--border);">
+                <div style="display: flex; gap: var(--space-md); flex-wrap: wrap;">
+                    <button class="btn btn-primary" onclick="runInterview()" id="runInterviewBtn">
+                        🚀 Run Interview
+                    </button>
+                    <a href="/imageset/{{ foldername }}/{{ imagesetname }}" class="btn btn-secondary">
+                        ← Back to Imageset
+                    </a>
+                    <a href="/folder/{{ foldername }}" class="btn btn-secondary">
+                        ← Back to Folder
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+function runInterview() {
+    const btn = document.getElementById('runInterviewBtn');
+    const originalText = btn.textContent;
+    
+    // Show confirmation dialog
+    if (!confirm('This will run the AI interview process on this imageset. This may take a few minutes. Continue?')) {
+        return;
+    }
+    
+    // Update button to show loading state
+    btn.textContent = '🔄 Running Interview...';
+    btn.disabled = true;
+    
+    // Make API call to run interview
+    fetch('/api/interview', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            foldername: '{{ foldername }}',
+            imagesetname: '{{ imagesetname }}'
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            // Show success message
+            alert('Interview completed successfully! The page will reload to show the results.');
+            // Reload the page to show new interview file
+            window.location.reload();
+        } else {
+            throw new Error(data.error || 'Interview failed');
+        }
+    })
+    .catch(error => {
+        console.error('Error running interview:', error);
+        alert('Error running interview: ' + error.message);
+        // Reset button
+        btn.textContent = originalText;
+        btn.disabled = false;
+    });
+}
+</script>
+{% endblock %}

@@ -16,6 +16,7 @@ def register_routes(app):
     # Imageset
     app.add_url_rule('/imageset/<string:foldername>/<string:imageset_name>', endpoint='imageset', view_func=views_html.imageset)
     app.add_url_rule('/imageset/<string:foldername>/<string:imageset_name>/edit', endpoint='imageset_edit', view_func=views_html.imageset_edit)
+    app.add_url_rule('/imageset/<string:foldername>/<string:imageset_name>/interview', endpoint='interview', view_func=views_html.interview)
     # app.add_url_rule('/imageset/<string:foldername>/<string:imageset_name/toml>', endpoint='imageset_toml', view_func=views_html.imageset_toml)
 
     # utility routes
@@ -47,7 +48,8 @@ def register_routes(app):
     app.add_url_rule('/api/imageset/<string:foldername>/<string:imageset>/update', endpoint='api_imageset_update', view_func=views_api.imageset_update, methods=['POST'])
     
     app.add_url_rule('/api/folder/<string:foldername>/review/new', endpoint='api_review_new', view_func=views_api.review_new)
+
+    app.add_url_rule('/api/interview', endpoint='api_interview', view_func=views_api.interview, methods=['POST'])
     
 
-    # TODO: api routes for performing an interview
     # TODO: api routes for reviews: new->working, 

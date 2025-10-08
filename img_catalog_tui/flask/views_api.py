@@ -1,4 +1,5 @@
 import logging
+import os
 from flask import jsonify, request
 
 from img_catalog_tui.config import Config
@@ -11,7 +12,77 @@ from img_catalog_tui.core.imageset_batch_update import ImagesetBatch
 config = Config()
 
 
-    
+def interview():
+    """Execute an AI interview on the cover image of an imageset."""
+    try:
+        # Validate request method
+        if request.method != 'POST':
+            return jsonify({"error": "Method not allowed"}), 405
+        
+        # Get JSON data from request
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No JSON data provided"}), 400
+        
+        # Validate required fields
+        if 'foldername' not in data:
+            return jsonify({"error": "Missing required field: foldername"}), 400
+        if 'imagesetname' not in data:
+            return jsonify({"error": "Missing required field: imagesetname"}), 400
+        
+        foldername = data['foldername']
+        imagesetname = data['imagesetname']
+        
+        # Get folder path using lightweight utility function
+        from img_catalog_tui.utils.folder_utils import get_folder_path
+        folderpath = get_folder_path(foldername)
+        
+        if not folderpath:
+            return jsonify({"error": f"Folder '{foldername}' not found in registry"}), 404
+        
+        imageset_path = os.path.join(folderpath, imagesetname)
+        
+        # Error if imageset_path does not exist
+        if not os.path.exists(imageset_path):
+            logging.error(f"Imageset path does not exist: {imageset_path}")
+            return jsonify({"error": f"Imageset '{imagesetname}' not found in folder '{folderpath}'"}), 404
+        
+        # Get an imageset object
+        imageset_obj = Imageset(config=config, folder_name=folderpath, imageset_name=imagesetname)
+        
+        # Get the full path to the cover image for the imageset
+        cover_image_path = imageset_obj.cover_image
+        if not cover_image_path:
+            logging.error(f"No cover image found for imageset: {imagesetname}")
+            return jsonify({"error": f"No cover image found for imageset '{imagesetname}'"}), 404
+        
+        # Create an interview object for the cover_image
+        from img_catalog_tui.core.imageset_interview import Interview
+        interview_obj = Interview(config=config, image_file=cover_image_path)
+        
+        # Execute interview.interview_image()
+        interview_obj.interview_image()
+        
+        # Return success response with interview results
+        response_data = {
+            "success": True,
+            "message": "Interview completed successfully",
+            "imageset": imagesetname,
+            "folder": foldername,
+            "cover_image": cover_image_path,
+            "interview_response": interview_obj.interview_response,
+            "interview_parsed": interview_obj.interview_parsed
+        }
+        
+        logging.info(f"Successfully completed interview for imageset {imagesetname} in folder {folderpath}")
+        return jsonify(response_data), 200
+        
+    except FileNotFoundError as e:
+        logging.error(f"File not found in interview: {e}")
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        logging.error(f"Error during interview for imageset {imagesetname} in folder {folderpath}: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
 
 def folders():
     """Return list of folders as JSON."""
@@ -22,8 +93,6 @@ def folders():
         logging.error(f"Error getting folders: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
     
-# TODO: implement an api route that takes a folder, a list of imagesets, a stat_field (status, edits, needs), a value and and an action (set, remove, add) then performs that action on each of the imagesets
-
 
 def folder(foldername: str):
     """Return folder information as JSON."""
@@ -60,8 +129,6 @@ def review_new(foldername: str):
         logging.error(f"Error processing folder {foldername}: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
 
-# TODO: review
-    
 
 def imageset(foldername: str, imageset: str):
     """Return imageset information as JSON."""

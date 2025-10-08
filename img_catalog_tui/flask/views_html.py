@@ -84,7 +84,86 @@ def reviews(foldername: str, review_name: str = "new") -> str:
         logging.error(f"Error in reviews endpoint: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
 
-
+def interview(foldername: str, imageset_name: str) -> str:
+    """Return the interview HTML page for a specific imageset."""
+    try:
+        logging.debug(f"interview endpoint: folder={foldername}, imageset={imageset_name}")
+        
+        # Get folder path using lightweight utility function
+        from img_catalog_tui.utils.folder_utils import get_folder_path
+        folder_path = get_folder_path(foldername)
+        
+        if not folder_path:
+            logging.warning(f"Folder '{foldername}' not found in registry")
+            return render_template('interview.html', 
+                                 title="Interview: Imageset Not Found", 
+                                 foldername=foldername,
+                                 imagesetname=imageset_name,
+                                 imageset_data=None,
+                                 error=f"Folder '{foldername}' not found"), 404
+        
+        # Create imageset object
+        from img_catalog_tui.core.imageset import Imageset
+        
+        try:
+            imageset_obj = Imageset(config=config, folder_name=folder_path, imageset_name=imageset_name)
+        except FileNotFoundError as e:
+            logging.warning(f"Imageset not found: {e}")
+            return render_template('interview.html', 
+                                 title="Interview: Imageset Not Found", 
+                                 foldername=foldername,
+                                 imagesetname=imageset_name,
+                                 imageset_data=None,
+                                 error=f"Imageset '{imageset_name}' not found"), 404
+        
+        # Convert imageset to dict format for template
+        imageset_data = imageset_obj.to_dict()
+        
+        def get_interview_file(files: dict) -> str:
+        
+            filename: str = ""
+            
+            for filename, filedata in files.items():
+                if filename.endswith("_interview.txt"):
+                    return filedata["fullpath"]
+                
+            return ""
+        
+        def get_interview_file_content(interview_file_path: str) -> str:
+            """Get the content of an interview file if it exists."""
+            
+            if interview_file_path == "":
+                return ""
+            
+            try:
+                # Validate filepath exists; if not return ""
+                if not os.path.exists(interview_file_path):
+                    logging.debug(f"Interview file does not exist: {interview_file_path}")
+                    return ""
+                
+                # Open and read interview_file_path and return it
+                with open(interview_file_path, 'r', encoding='utf-8') as file:
+                    content = file.read()
+                    logging.debug(f"Successfully read interview file: {interview_file_path}")
+                    return content
+                    
+            except Exception as e:
+                logging.error(f"Error reading interview file {interview_file_path}: {e}", exc_info=True)
+                return ""
+        
+        interview_file_content = get_interview_file_content(get_interview_file(imageset_data['files']))
+                
+        
+        return render_template('interview.html', 
+                             title=f"Interview: {imageset_name}", 
+                             foldername=foldername,
+                             imagesetname=imageset_name,
+                             imageset_data=imageset_data,
+                             interview_file_content = interview_file_content)
+                             
+    except Exception as e:
+        logging.error(f"Error in interview endpoint: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
 
 def folder(foldername: str) -> str:
     """Return the folder HTML page for a specific folder."""
