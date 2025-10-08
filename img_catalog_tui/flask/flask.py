@@ -4,7 +4,7 @@ import logging
 import os
 from flask import Flask
 
-from img_catalog_tui.logger import setup_logging
+from img_catalog_tui.logger import setup_logging, shutdown_logging
 from img_catalog_tui.config import Config
 
 from . import urls
@@ -56,6 +56,9 @@ def main() -> None:
     except Exception as e:
         logger.error(f"Failed to start Flask application: {e}")
         raise
+    finally:
+        # Properly shutdown logging to release file handles
+        shutdown_logging()
 
 
 if __name__ == '__main__':

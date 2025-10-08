@@ -9,7 +9,7 @@ from typing import Dict, Any, Tuple, Optional
 from img_catalog_tui.cli import parse_args
 from img_catalog_tui.config import Config
 from img_catalog_tui.core.commands import handle_command
-from img_catalog_tui.logger import setup_logging
+from img_catalog_tui.logger import setup_logging, shutdown_logging
 
 
 def start_menu(config: Config, input_folder: Optional[str] = None) -> Tuple[str, Dict[str, Any]]:
@@ -80,6 +80,9 @@ def main():
     except Exception as e:
         logging.error(f"Error during application execution: {e}", exc_info=True)
         return 1
+    finally:
+        # Properly shutdown logging to release file handles
+        shutdown_logging()
     
     logging.debug("Application terminated normally")
     return 0

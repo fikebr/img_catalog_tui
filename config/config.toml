@@ -8,7 +8,7 @@ img_file_ext = ["png", "jpg", "jpeg", "bmp"]
 status = ["new", "keep", "edit", "working", "posted", "archive"]
 edits = ["creative", "photoshop", "rmbg", "up", "vector"]
 needs = ["orig", "thumbnail", "interview", "mockups"]
-good_for = ["stock", "rb", "poster"]
+good_for = ["stock", "rb", "poster", "sticker"]
 posted_to = ["stock", "rb", "tp", "faa", "etsy"]
 review_types = ["status", "edits", "needs", "good_for", "posted_to"]
 

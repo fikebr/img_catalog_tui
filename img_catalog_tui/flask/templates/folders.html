@@ -126,7 +126,7 @@
                     <div class="folder-name">${escapeHtml(folderName)}</div>
                     <div class="folder-path">${escapeHtml(folderPath)}</div>
                     <div class="folder-actions">
-                        <button class="btn btn-secondary" onclick="copyPath('${escapeHtml(folderPath)}')">Copy Path</button>
+                        <button class="btn btn-secondary" data-path="${escapeHtml(folderPath)}" onclick="copyPath(this)">Copy Path</button>
                         <button class="btn btn-primary" onclick="viewFolder('${escapeHtml(folderName)}')">View Folder</button>
                         <button class="btn btn-danger" onclick="deleteFolder('${escapeHtml(folderName)}')">Delete</button>
                     </div>
@@ -209,14 +209,23 @@
         }
         
         // Copy folder path to clipboard
-        function copyPath(folderPath) {
-            navigator.clipboard.writeText(folderPath).then(() => {
-                showAddSuccess('Path copied to clipboard!');
-                setTimeout(() => hideMessages(), 2000);
-            }).catch(err => {
-                console.error('Failed to copy path:', err);
+        function copyPath(btn) {
+            try {
+                const folderPath = btn.getAttribute('data-path') || '';
+                if (!folderPath) { return; }
+                navigator.clipboard.writeText(folderPath)
+                    .then(() => {
+                        showAddSuccess('Path copied to clipboard!');
+                        setTimeout(() => hideMessages(), 2000);
+                    })
+                    .catch(err => {
+                        console.error('Failed to copy path:', err);
+                        showAddError('Failed to copy path to clipboard');
+                    });
+            } catch (e) {
+                console.error('Copy failed:', e);
                 showAddError('Failed to copy path to clipboard');
-            });
+            }
         }
         
         // View folder - navigate to folder details page
