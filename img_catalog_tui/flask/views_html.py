@@ -368,6 +368,8 @@ def imageset(foldername: str, imageset_name: str) -> str:
                                  imageset_name=imageset_name,
                                  imageset_data=None,
                                  error="Failed to connect to API"), 500
+            
+        # build a image_files dict and pass it into the 
         
         return render_template('imageset.html',
                              title=f"Imageset: {imageset_name}",
