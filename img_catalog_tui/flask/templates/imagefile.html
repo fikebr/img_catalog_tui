@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+
+{% block content %}
+<!-- Breadcrumb Navigation -->
+<nav class="breadcrumb-nav">
+    <div class="breadcrumb-items">
+        <a href="/">Home</a>
+        <span class="breadcrumb-separator">→</span>
+        <a href="/folders">Folders</a>
+        <span class="breadcrumb-separator">→</span>
+        <a href="/folder/{{ foldername }}">{{ foldername }}</a>
+        <span class="breadcrumb-separator">→</span>
+        <a href="/imageset/{{ foldername }}/{{ imageset_name }}">{{ imageset_name }}</a>
+        <span class="breadcrumb-separator">→</span>
+        <span class="breadcrumb-current">{{ filename }}</span>
+    </div>
+</nav>
+
+{% if error %}
+    <div class="error-message">
+        {{ error }}
+    </div>
+{% else %}
+    <div class="section">
+        <!-- File Name -->
+        <div class="folder-path" style="font-family: var(--font-mono); background: var(--muted); padding: var(--space-sm); border-radius: var(--radius-sm); margin-bottom: var(--space-md); word-break: break-all;">
+            {{ filename }}
+        </div>
+        
+        {% if imagefile_data %}
+            <!-- Image Display -->
+            <div class="card" style="margin-bottom: var(--space-lg);">
+                <div class="card-header">
+                    <h3 style="margin: 0; color: var(--accent); font-size: 1.1rem;">🖼️ Image Preview</h3>
+                </div>
+                <div class="card-content text-center">
+                    <a href="/images/{{ foldername }}/{{ imageset_name }}/{{ filename }}" target="_blank" style="display: inline-block;">
+                        <img src="/images/{{ foldername }}/{{ imageset_name }}/{{ filename }}"
+                             alt="{{ filename }}"
+                             style="max-width: 100%; max-height: 600px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
+                    </a>
+                </div>
+            </div>
+
+            <!-- Image Properties Grid -->
+            <div class="grid grid-2" style="margin-top: var(--space-md); gap: var(--space-lg);">
+                <!-- Properties Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 style="margin: 0; color: var(--accent); font-size: 1.1rem;">📊 Properties</h3>
+                    </div>
+                    <div class="card-content">
+                        <div style="display: grid; gap: var(--space-sm);">
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-xs) 0; border-bottom: 1px solid var(--border);">
+                                <span style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">Width</span>
+                                <span style="font-weight: 500;">{{ imagefile_data.width }} px</span>
+                            </div>
+                            
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-xs) 0; border-bottom: 1px solid var(--border);">
+                                <span style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">Height</span>
+                                <span style="font-weight: 500;">{{ imagefile_data.height }} px</span>
+                            </div>
+                            
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-xs) 0; border-bottom: 1px solid var(--border);">
+                                <span style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">Aspect Ratio</span>
+                                <span style="font-weight: 500;">{{ imagefile_data.aspect_ratio }}</span>
+                            </div>
+                            
+                            <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-xs) 0;">
+                                <span style="font-size: 0.875rem; color: var(--text); opacity: 0.8;">File Size</span>
+                                <span style="font-weight: 500;">{{ imagefile_data.size }} KB</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Actions Card -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3 style="margin: 0; color: var(--accent); font-size: 1.1rem;">⚙️ Actions</h3>
+                    </div>
+                    <div class="card-content">
+                        <div style="display: grid; gap: var(--space-md);">
+                            <!-- Create Thumbnail Button -->
+                            <div>
+                                <button id="createThumbnailBtn" 
+                                        class="btn btn-primary" 
+                                        style="width: 100%; display: flex; justify-content: space-between; align-items: center;"
+                                        onclick="createThumbnail()"
+                                        {% if imagefile_data.thumbnail_exists %}disabled{% endif %}>
+                                    <span>Create Thumbnail</span>
+                                    {% if imagefile_data.thumbnail_exists %}
+                                    <span style="color: #22c55e; font-size: 1.2rem;">✓</span>
+                                    {% endif %}
+                                </button>
+                                <div id="thumbnailStatus" style="margin-top: var(--space-xs); font-size: 0.875rem; color: var(--text); opacity: 0.8;"></div>
+                            </div>
+                            
+                            <!-- Create Watermark Button -->
+                            <div>
+                                <button id="createWatermarkBtn" 
+                                        class="btn btn-primary" 
+                                        style="width: 100%; display: flex; justify-content: space-between; align-items: center;"
+                                        onclick="createWatermark()"
+                                        {% if imagefile_data.watermark_exists %}disabled{% endif %}>
+                                    <span>Create Watermark</span>
+                                    {% if imagefile_data.watermark_exists %}
+                                    <span style="color: #22c55e; font-size: 1.2rem;">✓</span>
+                                    {% endif %}
+                                </button>
+                                <div id="watermarkStatus" style="margin-top: var(--space-xs); font-size: 0.875rem; color: var(--text); opacity: 0.8;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Back Navigation -->
+            <div class="section" style="margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid var(--border);">
+                <div style="display: flex; gap: var(--space-md);">
+                    <a href="/imageset/{{ foldername }}/{{ imageset_name }}" class="btn btn-secondary">
+                        ← Back to Imageset
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+const foldername = {{ foldername | tojson }};
+const imagesetName = {{ imageset_name | tojson }};
+const filename = {{ filename | tojson }};
+
+function createThumbnail() {
+    const btn = document.getElementById('createThumbnailBtn');
+    const status = document.getElementById('thumbnailStatus');
+    
+    // Disable button and show loading state
+    btn.disabled = true;
+    btn.innerHTML = '<span>Creating...</span>';
+    status.textContent = 'Please wait...';
+    status.style.color = 'var(--text)';
+    
+    // Make API call
+    fetch(`/api/imagefile/${foldername}/${imagesetName}/${filename}/thumbnail`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            btn.innerHTML = '<span>Create Thumbnail</span><span style="color: #22c55e; font-size: 1.2rem;">✓</span>';
+            status.textContent = 'Thumbnail created successfully!';
+            status.style.color = '#22c55e';
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = '<span>Create Thumbnail</span>';
+            status.textContent = 'Error: ' + (data.error || 'Failed to create thumbnail');
+            status.style.color = '#ef4444';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        btn.disabled = false;
+        btn.innerHTML = '<span>Create Thumbnail</span>';
+        status.textContent = 'Error: Failed to connect to server';
+        status.style.color = '#ef4444';
+    });
+}
+
+function createWatermark() {
+    const btn = document.getElementById('createWatermarkBtn');
+    const status = document.getElementById('watermarkStatus');
+    
+    // Disable button and show loading state
+    btn.disabled = true;
+    btn.innerHTML = '<span>Creating...</span>';
+    status.textContent = 'Please wait...';
+    status.style.color = 'var(--text)';
+    
+    // Make API call
+    fetch(`/api/imagefile/${foldername}/${imagesetName}/${filename}/watermark`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            btn.innerHTML = '<span>Create Watermark</span><span style="color: #22c55e; font-size: 1.2rem;">✓</span>';
+            status.textContent = 'Watermark created successfully!';
+            status.style.color = '#22c55e';
+        } else {
+            btn.disabled = false;
+            btn.innerHTML = '<span>Create Watermark</span>';
+            status.textContent = 'Error: ' + (data.error || 'Failed to create watermark');
+            status.style.color = '#ef4444';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        btn.disabled = false;
+        btn.innerHTML = '<span>Create Watermark</span>';
+        status.textContent = 'Error: Failed to connect to server';
+        status.style.color = '#ef4444';
+    });
+}
+</script>
+{% endblock %}
+

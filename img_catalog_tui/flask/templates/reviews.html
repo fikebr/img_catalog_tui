@@ -227,11 +227,22 @@
     function showToast(msg){toastMsgEl.textContent=msg;toastEl.hidden=false;clearTimeout(showToast.t);showToast.t=setTimeout(()=>toastEl.hidden=true,1200);}
     function getInitials(str){return str.slice(0,2).toUpperCase();}
 
-    function buildCartItem(name,title){
+    function buildCartItem(name,title,cart,imagePath){
       const item=document.createElement('div');
       item.className='cart-item';
       item.dataset.imagesetname=name;
-      item.innerHTML=`<div class="thumb">${getInitials(title||name)}</div><div>${title||name}</div>`;
+      
+      // Create thumbnail image or fallback to initials
+      let thumbContent;
+      if (imagePath) {
+        const foldername = '{{ foldername }}';
+        const imageSrc = `/images/${foldername}/${name}/${imagePath}`;
+        thumbContent = `<img src="${imageSrc}" alt="${title||name}" class="thumb-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><div class="thumb-fallback" style="display:none;">${getInitials(title||name)}</div>`;
+      } else {
+        thumbContent = `<div class="thumb-fallback">${getInitials(title||name)}</div>`;
+      }
+      
+      item.innerHTML=`<div class="thumb">${thumbContent}</div><button class="remove-btn" onclick="removeFromCart('${name}', '${cart}')" title="Remove from cart">×</button>`;
       return item;
     }
 
@@ -240,8 +251,37 @@
       if(state[cart].includes(name))return;
       state[cart].push(name);
       card.hidden=true;
-      const item=buildCartItem(name,title);
+      
+      // Extract image path from the card's image element
+      const imageEl = card.querySelector('.card-image');
+      const imagePath = imageEl ? imageEl.src.split('/').pop() : null;
+      
+      const item=buildCartItem(name,title,cart,imagePath);
       $("#"+cart+"Items").appendChild(item);
+      updateCounts();
+      updateCartCount(cart);
+    }
+
+    function removeFromCart(imagesetName, cart) {
+      // Remove from state
+      const index = state[cart].indexOf(imagesetName);
+      if (index > -1) {
+        state[cart].splice(index, 1);
+      }
+      
+      // Remove from DOM
+      const cartItems = $('#' + cart + 'Items');
+      const itemToRemove = cartItems.querySelector(`[data-imagesetname="${CSS.escape(imagesetName)}"]`);
+      if (itemToRemove) {
+        itemToRemove.remove();
+      }
+      
+      // Restore the original card to the review section
+      const originalCard = cardsEl.querySelector(`.review-card[data-imagesetname="${CSS.escape(imagesetName)}"]`);
+      if (originalCard) {
+        originalCard.hidden = false;
+      }
+      
       updateCounts();
       updateCartCount(cart);
     }

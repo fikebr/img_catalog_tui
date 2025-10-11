@@ -442,3 +442,90 @@ def imageset_edit(foldername: str, imageset_name: str) -> str:
     except Exception as e:
         logging.error(f"Error in imageset_edit endpoint: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
+
+
+def imagefile(foldername: str, imageset_name: str, filename: str) -> str:
+    """Return the imagefile HTML page that displays detailed information about a specific image file."""
+    try:
+        logging.debug(f"imagefile endpoint: folder={foldername}, imageset={imageset_name}, filename={filename}")
+        
+        # Get folder path from Folders registry
+        folders_obj = Folders()
+        if foldername not in folders_obj.folders:
+            logging.warning(f"Folder '{foldername}' not found in registry")
+            return render_template('imagefile.html',
+                                 title="File Not Found",
+                                 foldername=foldername,
+                                 imageset_name=imageset_name,
+                                 filename=filename,
+                                 imagefile_data=None,
+                                 error=f"Folder '{foldername}' not found"), 404
+        
+        folder_path = folders_obj.folders[foldername]
+        
+        # Construct full file path
+        file_path = os.path.join(folder_path, imageset_name, filename)
+        
+        # Security check: ensure the path is within the allowed folder
+        if not os.path.abspath(file_path).startswith(os.path.abspath(folder_path)):
+            logging.warning(f"Security violation: path traversal attempt for {foldername}/{imageset_name}/{filename}")
+            return render_template('imagefile.html',
+                                 title="Access Denied",
+                                 foldername=foldername,
+                                 imageset_name=imageset_name,
+                                 filename=filename,
+                                 imagefile_data=None,
+                                 error="Access denied"), 403
+        
+        # Check if file exists
+        if not os.path.exists(file_path):
+            logging.warning(f"Image file not found: {file_path}")
+            return render_template('imagefile.html',
+                                 title="File Not Found",
+                                 foldername=foldername,
+                                 imageset_name=imageset_name,
+                                 filename=filename,
+                                 imagefile_data=None,
+                                 error=f"File '{filename}' not found"), 404
+        
+        # Create ImageFile object
+        from img_catalog_tui.core.imagefile import ImageFile
+        
+        try:
+            imagefile_obj = ImageFile(file_path=file_path)
+        except Exception as e:
+            logging.error(f"Error creating ImageFile object: {e}")
+            return render_template('imagefile.html',
+                                 title="Error",
+                                 foldername=foldername,
+                                 imageset_name=imageset_name,
+                                 filename=filename,
+                                 imagefile_data=None,
+                                 error="Failed to load image file"), 500
+        
+        # Check if thumbnail and watermark already exist
+        thumbnail_exists = bool(imagefile_obj.thumbnail)
+        watermark_exists = os.path.exists(imagefile_obj.file_path.replace(os.path.splitext(imagefile_obj.file_path)[1], f"_watermark{os.path.splitext(imagefile_obj.file_path)[1]}"))
+        
+        # Prepare data for template
+        imagefile_data = {
+            'filename': filename,
+            'file_path': file_path,
+            'height': imagefile_obj.height,
+            'width': imagefile_obj.width,
+            'aspect_ratio': imagefile_obj.aspect_ratio,
+            'size': imagefile_obj.size,
+            'thumbnail_exists': thumbnail_exists,
+            'watermark_exists': watermark_exists
+        }
+        
+        return render_template('imagefile.html',
+                             title=f"ImageFile: {filename}",
+                             foldername=foldername,
+                             imageset_name=imageset_name,
+                             filename=filename,
+                             imagefile_data=imagefile_data)
+                             
+    except Exception as e:
+        logging.error(f"Error in imagefile endpoint: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500

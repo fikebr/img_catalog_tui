@@ -380,6 +380,127 @@ def imageset_update(foldername: str, imageset: str):
         return jsonify({"error": "Internal server error"}), 500
 
 
+def create_thumbnail(foldername: str, imageset_name: str, filename: str):
+    """Create a thumbnail for an image file."""
+    try:
+        # Validate request method
+        if request.method != 'POST':
+            return jsonify({"error": "Method not allowed"}), 405
+        
+        # Get folder path from Folders registry
+        folders_obj = Folders()
+        if foldername not in folders_obj.folders:
+            logging.warning(f"Folder '{foldername}' not found in registry")
+            return jsonify({"error": f"Folder '{foldername}' not found"}), 404
+        
+        folder_path = folders_obj.folders[foldername]
+        
+        # Construct full file path
+        file_path = os.path.join(folder_path, imageset_name, filename)
+        
+        # Security check: ensure the path is within the allowed folder
+        if not os.path.abspath(file_path).startswith(os.path.abspath(folder_path)):
+            logging.warning(f"Security violation: path traversal attempt for {foldername}/{imageset_name}/{filename}")
+            return jsonify({"error": "Access denied"}), 403
+        
+        # Check if file exists
+        if not os.path.exists(file_path):
+            logging.warning(f"Image file not found: {file_path}")
+            return jsonify({"error": f"File '{filename}' not found"}), 404
+        
+        # Create ImageFile object
+        from img_catalog_tui.core.imagefile import ImageFile
+        
+        try:
+            imagefile_obj = ImageFile(file_path=file_path)
+            thumbnail_path = imagefile_obj.create_thumbnail()
+            
+            if thumbnail_path:
+                logging.info(f"Successfully created thumbnail for {filename}: {thumbnail_path}")
+                return jsonify({
+                    "success": True,
+                    "message": "Thumbnail created successfully",
+                    "thumbnail_path": thumbnail_path
+                }), 200
+            else:
+                logging.error(f"Failed to create thumbnail for {filename}")
+                return jsonify({"error": "Failed to create thumbnail"}), 500
+                
+        except Exception as e:
+            logging.error(f"Error creating thumbnail for {filename}: {e}", exc_info=True)
+            return jsonify({"error": f"Failed to create thumbnail: {str(e)}"}), 500
+        
+    except Exception as e:
+        logging.error(f"Error in create_thumbnail endpoint: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+
+def create_watermark(foldername: str, imageset_name: str, filename: str):
+    """Create a watermarked version of an image file."""
+    try:
+        # Validate request method
+        if request.method != 'POST':
+            return jsonify({"error": "Method not allowed"}), 405
+        
+        # Get watermark file path from config
+        watermark_file = config.config_data.get('paths', {}).get('watermark_file', '')
+        if not watermark_file:
+            logging.error("Watermark file path not configured")
+            return jsonify({"error": "Watermark file path not configured in config.toml"}), 500
+        
+        # Check if watermark file exists
+        if not os.path.exists(watermark_file):
+            logging.error(f"Watermark file does not exist: {watermark_file}")
+            return jsonify({"error": f"Watermark file not found: {watermark_file}"}), 500
+        
+        # Get folder path from Folders registry
+        folders_obj = Folders()
+        if foldername not in folders_obj.folders:
+            logging.warning(f"Folder '{foldername}' not found in registry")
+            return jsonify({"error": f"Folder '{foldername}' not found"}), 404
+        
+        folder_path = folders_obj.folders[foldername]
+        
+        # Construct full file path
+        file_path = os.path.join(folder_path, imageset_name, filename)
+        
+        # Security check: ensure the path is within the allowed folder
+        if not os.path.abspath(file_path).startswith(os.path.abspath(folder_path)):
+            logging.warning(f"Security violation: path traversal attempt for {foldername}/{imageset_name}/{filename}")
+            return jsonify({"error": "Access denied"}), 403
+        
+        # Check if file exists
+        if not os.path.exists(file_path):
+            logging.warning(f"Image file not found: {file_path}")
+            return jsonify({"error": f"File '{filename}' not found"}), 404
+        
+        # Create ImageFile object
+        from img_catalog_tui.core.imagefile import ImageFile
+        
+        try:
+            imagefile_obj = ImageFile(file_path=file_path)
+            watermark_path = imagefile_obj.create_watermark(watermark_file=watermark_file)
+            
+            if watermark_path:
+                logging.info(f"Successfully created watermark for {filename}: {watermark_path}")
+                return jsonify({
+                    "success": True,
+                    "message": "Watermark created successfully",
+                    "watermark_path": watermark_path
+                }), 200
+            else:
+                logging.error(f"Failed to create watermark for {filename}")
+                return jsonify({"error": "Failed to create watermark"}), 500
+                
+        except Exception as e:
+            logging.error(f"Error creating watermark for {filename}: {e}", exc_info=True)
+            return jsonify({"error": f"Failed to create watermark: {str(e)}"}), 500
+        
+    except Exception as e:
+        logging.error(f"Error in create_watermark endpoint: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+
 def favicon():
     """Return a simple SVG favicon."""
     svg = '''<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">

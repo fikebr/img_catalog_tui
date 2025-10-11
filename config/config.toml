@@ -1,7 +1,7 @@
 # Image Catalog TUI Configuration
 
 # File tags used for identifying image variants
-file_tags = ["orig", "thumb", "v2", "v3", "v4", "v5", "up2", "up3", "up4", "up6", "interview", "raw"]
+file_tags = ["orig", "thumb", "v2", "v3", "v4", "v5", "up2", "up3", "up4", "up6", "interview", "raw", "watermark"]
 img_file_ext = ["png", "jpg", "jpeg", "bmp"]
 
 # selection options
@@ -39,6 +39,7 @@ fooocus_exif_field = "PNG:parameters"
 [paths]
 templates_dir = "config/templates"
 menu_config = "config/menu.toml"
+watermark_file = "C:/Users/bradf/Downloads/Jackrabbit Watermark.png"
 
 # Review presets - predefined combinations of states, review_type, and options
 [review_presets]
@@ -64,3 +65,12 @@ states = ["keep", "edit", "working"]
 review_type = "good_for"
 options = ["stock", "rb", "poster"]
 description = "Tag Images with Good For tags."
+
+[mockups]
+
+photoshop_exe = ""
+mockups_base_folder = "c:/mockups/"
+params_file = "params.json"
+
+[mockups.folders]
+poster_vertical = "posters/vertical"

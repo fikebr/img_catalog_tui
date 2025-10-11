@@ -25,8 +25,11 @@
     </div>
 {% else %}
     <div class="section">
-        <div class="folder-path" style="font-family: var(--font-mono); background: var(--muted); padding: var(--space-sm); border-radius: var(--radius-sm); margin-bottom: var(--space-md); word-break: break-all;">
-            {{ imageset_data.prompt or 'No prompt available' }}
+        <div style="display: flex; align-items: flex-start; gap: var(--space-sm); background: var(--muted); padding: var(--space-sm); border-radius: var(--radius-sm); margin-bottom: var(--space-md);">
+            <div style="font-family: var(--font-mono); word-break: break-all; flex: 1;">
+                {{ imageset_data.prompt or 'No prompt available' }}
+            </div>
+            <button class="btn btn-secondary" style="padding: var(--space-xs) var(--space-sm); font-size: 1rem; flex-shrink: 0;" onclick="copyPrompt()" title="Copy prompt">📋</button>
         </div>
         
         {% if imageset_data %}
@@ -90,6 +93,11 @@
                             </div>
                             {% endif %}
                         </div>
+                        <div style="margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--border);">
+                            <a href="/imageset/{{ foldername }}/{{ imageset_name }}/edit" class="btn btn-primary" target="_blank" style="width: 100%; text-align: center;">
+                                ✏️ Edit
+                            </a>
+                        </div>
                     </div>
                 </div>
                 
@@ -142,8 +150,9 @@
                                      alt="{{ filename.split('/')[-1] }}"
                                      style="max-width: 100%; max-height: 260px; border-radius: var(--radius-sm); border: 1px solid var(--border);">
                             </a>
-                            <div style="display: flex; justify-content: flex-end; margin-top: var(--space-sm);">
-                                <button class="btn btn-secondary" style="font-size: 0.8rem;" data-path="{{ file_info['fullpath'] }}" onclick="copyFullPath(this)">Copy Full Path</button>
+                            <div style="display: flex; justify-content: space-between; gap: var(--space-xs); margin-top: var(--space-sm);">
+                                <button class="btn btn-secondary" style="font-size: 0.8rem;" data-path="{{ file_info['fullpath'] }}" onclick="copyFullPath(this)">📋</button>
+                                <a href="/imagefile/{{ foldername }}/{{ imageset_name }}/{{ filename.split('/')[-1] }}" class="btn btn-primary" style="font-size: 0.8rem;" target="_blank">ImageFile</a>
                             </div>
                         </div>
                         {% endif %}
@@ -180,9 +189,6 @@
             <!-- Actions Section -->
             <div class="section" style="margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid var(--border);">
                 <div style="display: flex; gap: var(--space-md); flex-wrap: wrap;">
-                    <a href="/imageset/{{ foldername }}/{{ imageset_name }}/edit" class="btn btn-primary" target="_blank">
-                        ✏️ Edit
-                    </a>
                     <a href="/imageset/{{ foldername }}/{{ imageset_name }}/interview" class="btn btn-primary" target="_blank">
                         🚀 Interview
                     </a>
@@ -205,6 +211,25 @@
 {% block scripts %}
 {{ super() }}
 <script>
+function copyPrompt() {
+    try {
+        const prompt = {{ (imageset_data.prompt if imageset_data else "") | tojson }};
+        if (!prompt) { return; }
+        navigator.clipboard.writeText(prompt)
+            .then(() => {
+                // Optional lightweight UX feedback
+                const btn = event.target;
+                btn.textContent = '✓';
+                setTimeout(() => { btn.textContent = '📋'; }, 1200);
+            })
+            .catch((err) => {
+                console.error('Clipboard write failed:', err);
+            });
+    } catch (e) {
+        console.error('Copy failed:', e);
+    }
+}
+
 function copyFullPath(btn) {
     try {
         const fullPath = btn.getAttribute('data-path') || '';
@@ -212,8 +237,8 @@ function copyFullPath(btn) {
         navigator.clipboard.writeText(fullPath)
             .then(() => {
                 // Optional lightweight UX feedback
-                btn.textContent = 'Copied!';
-                setTimeout(() => { btn.textContent = 'Copy Full Path'; }, 1200);
+                btn.textContent = '✓';
+                setTimeout(() => { btn.textContent = '📋'; }, 1200);
             })
             .catch((err) => {
                 console.error('Clipboard write failed:', err);

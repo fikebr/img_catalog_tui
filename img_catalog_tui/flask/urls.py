@@ -18,6 +18,9 @@ def register_routes(app):
     app.add_url_rule('/imageset/<string:foldername>/<string:imageset_name>/edit', endpoint='imageset_edit', view_func=views_html.imageset_edit)
     app.add_url_rule('/imageset/<string:foldername>/<string:imageset_name>/interview', endpoint='interview', view_func=views_html.interview)
     # app.add_url_rule('/imageset/<string:foldername>/<string:imageset_name/toml>', endpoint='imageset_toml', view_func=views_html.imageset_toml)
+    
+    # ImageFile
+    app.add_url_rule('/imagefile/<string:foldername>/<string:imageset_name>/<path:filename>', endpoint='imagefile', view_func=views_html.imagefile)
 
     # utility routes
     app.add_url_rule('/health', endpoint='health', view_func=views_html.health)
@@ -50,6 +53,9 @@ def register_routes(app):
     app.add_url_rule('/api/folder/<string:foldername>/review/new', endpoint='api_review_new', view_func=views_api.review_new)
 
     app.add_url_rule('/api/interview', endpoint='api_interview', view_func=views_api.interview, methods=['POST'])
+    
+    app.add_url_rule('/api/imagefile/<string:foldername>/<string:imageset_name>/<path:filename>/thumbnail', endpoint='api_create_thumbnail', view_func=views_api.create_thumbnail, methods=['POST'])
+    app.add_url_rule('/api/imagefile/<string:foldername>/<string:imageset_name>/<path:filename>/watermark', endpoint='api_create_watermark', view_func=views_api.create_watermark, methods=['POST'])
     
 
     # TODO: api routes for reviews: new->working, 
