@@ -501,112 +501,63 @@ def create_watermark(foldername: str, imageset_name: str, filename: str):
         return jsonify({"error": "Internal server error"}), 500
 
 
-def mockups_files(foldername: str, imageset_name: str, filename: str, mockup_folder_name: str):
-    """Return list of mockup PSD files for an image file."""
+def mockup_create():
+    """Create mockups for an image file using Photoshop."""
     try:
-        # Get folder path from Folders registry
-        folders_obj = Folders()
-        if foldername not in folders_obj.folders:
-            logging.warning(f"Folder '{foldername}' not found in registry")
-            return jsonify({"error": f"Folder '{foldername}' not found"}), 404
+        # Validate request method
+        if request.method != 'POST':
+            return jsonify({"error": "Method not allowed"}), 405
         
-        folder_path = folders_obj.folders[foldername]
+        # Get JSON data from request
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No JSON data provided"}), 400
         
-        # Construct full file path
-        file_path = os.path.join(folder_path, imageset_name, filename)
+        # Validate required fields
+        required_fields = ['image_file_path', 'mockup_type', 'orientation']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"Missing required field: {field}"}), 400
         
-        # Security check: ensure the path is within the allowed folder
-        if not os.path.abspath(file_path).startswith(os.path.abspath(folder_path)):
-            logging.warning(f"Security violation: path traversal attempt for {foldername}/{imageset_name}/{filename}")
-            return jsonify({"error": "Access denied"}), 403
+        image_file_path = data['image_file_path']
+        mockup_type = data['mockup_type']
+        orientation = data['orientation']
+        layer_name = data.get('layer_name', None)
         
-        # Check if file exists
-        if not os.path.exists(file_path):
-            logging.warning(f"Image file not found: {file_path}")
-            return jsonify({"error": f"File '{filename}' not found"}), 404
+        # Validate that image file exists
+        if not os.path.exists(image_file_path):
+            return jsonify({"error": f"Image file not found: {image_file_path}"}), 404
         
-        # Create ImageMockups object
-        from img_catalog_tui.core.imagefile_mockups import ImageMockups
+        # Create ImageMockup object
+        from img_catalog_tui.core.imagefile_mockups import ImageMockup
         
         try:
-            mockups_obj = ImageMockups(
+            mockup_obj = ImageMockup(
                 config=config,
-                image_file_path=file_path,
-                mockup_folder_name=mockup_folder_name
+                image_file_path=image_file_path,
+                mockup_type=mockup_type,
+                orientation=orientation,
+                layer_name=layer_name
             )
             
-            mockup_files = mockups_obj.get_mockup_files()
-            config_dict = mockups_obj.get_config_dict()
+            # Build the mockups
+            mockup_obj.build_mockups()
             
+            # Return success response
             return jsonify({
                 "success": True,
-                "mockup_files": mockup_files,
-                "config": config_dict
+                "message": "Mockups created successfully",
+                "mockup_count": len(mockup_obj.mockups),
+                "output_folder": mockup_obj.output_folder,
+                "mockups": mockup_obj.mockups
             }), 200
             
         except Exception as e:
-            logging.error(f"Error getting mockup files for {filename}: {e}", exc_info=True)
-            return jsonify({"error": f"Failed to get mockup files: {str(e)}"}), 500
+            logging.error(f"Error creating mockups: {e}", exc_info=True)
+            return jsonify({"error": f"Failed to create mockups: {str(e)}"}), 500
         
     except Exception as e:
-        logging.error(f"Error in mockups_files endpoint: {e}", exc_info=True)
-        return jsonify({"error": "Internal server error"}), 500
-
-
-def mockups_psd(foldername: str, imageset_name: str, filename: str, mockup_folder_name: str, psd_filename: str):
-    """Return information about a specific PSD mockup file."""
-    try:
-        # Get folder path from Folders registry
-        folders_obj = Folders()
-        if foldername not in folders_obj.folders:
-            logging.warning(f"Folder '{foldername}' not found in registry")
-            return jsonify({"error": f"Folder '{foldername}' not found"}), 404
-        
-        folder_path = folders_obj.folders[foldername]
-        
-        # Construct full file path
-        file_path = os.path.join(folder_path, imageset_name, filename)
-        
-        # Security check: ensure the path is within the allowed folder
-        if not os.path.abspath(file_path).startswith(os.path.abspath(folder_path)):
-            logging.warning(f"Security violation: path traversal attempt for {foldername}/{imageset_name}/{filename}")
-            return jsonify({"error": "Access denied"}), 403
-        
-        # Check if file exists
-        if not os.path.exists(file_path):
-            logging.warning(f"Image file not found: {file_path}")
-            return jsonify({"error": f"File '{filename}' not found"}), 404
-        
-        # Create ImageMockups object
-        from img_catalog_tui.core.imagefile_mockups import ImageMockups
-        
-        try:
-            mockups_obj = ImageMockups(
-                config=config,
-                image_file_path=file_path,
-                mockup_folder_name=mockup_folder_name
-            )
-            
-            psd_file_path = mockups_obj.get_psd_file_path(psd_filename)
-            
-            # Check if PSD file exists
-            if not os.path.exists(psd_file_path):
-                logging.warning(f"PSD file not found: {psd_file_path}")
-                return jsonify({"error": f"PSD file '{psd_filename}' not found"}), 404
-            
-            return jsonify({
-                "success": True,
-                "psd_filename": psd_filename,
-                "psd_file_path": psd_file_path,
-                "basename": os.path.splitext(psd_filename)[0]
-            }), 200
-            
-        except Exception as e:
-            logging.error(f"Error getting PSD file info for {psd_filename}: {e}", exc_info=True)
-            return jsonify({"error": f"Failed to get PSD file info: {str(e)}"}), 500
-        
-    except Exception as e:
-        logging.error(f"Error in mockups_psd endpoint: {e}", exc_info=True)
+        logging.error(f"Error in mockup_create endpoint: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
 
 

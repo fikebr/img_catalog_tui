@@ -23,7 +23,7 @@ def register_routes(app):
     app.add_url_rule('/imagefile/<string:foldername>/<string:imageset_name>/<path:filename>', endpoint='imagefile', view_func=views_html.imagefile)
 
     # Mockups
-    app.add_url_rule('/mockups/<string:foldername>/<string:imageset_name>/<path:filename>', endpoint='mockups', view_func=views_html.mockups)
+    app.add_url_rule('/mockups/<string:foldername>/<string:imageset_name>/<path:filename>', endpoint='mockups', view_func=views_html.mockups, methods=['GET', 'POST'])
 
     # utility routes
     app.add_url_rule('/health', endpoint='health', view_func=views_html.health)
@@ -59,8 +59,8 @@ def register_routes(app):
     
     app.add_url_rule('/api/imagefile/<string:foldername>/<string:imageset_name>/<path:filename>/thumbnail', endpoint='api_create_thumbnail', view_func=views_api.create_thumbnail, methods=['POST'])
     app.add_url_rule('/api/imagefile/<string:foldername>/<string:imageset_name>/<path:filename>/watermark', endpoint='api_create_watermark', view_func=views_api.create_watermark, methods=['POST'])
-    
-    app.add_url_rule('/api/mockups/files/<string:foldername>/<string:imageset_name>/<path:filename>/<string:mockup_folder_name>', endpoint='api_mockups_files', view_func=views_api.mockups_files, methods=['GET'])
-    app.add_url_rule('/api/mockups/psd/<string:foldername>/<string:imageset_name>/<path:filename>/<string:mockup_folder_name>/<string:psd_filename>', endpoint='api_mockups_psd', view_func=views_api.mockups_psd, methods=['GET'])
+
+    # Mockups API
+    app.add_url_rule('/api/mockups/create', endpoint='api_mockup_create', view_func=views_api.mockup_create, methods=['POST'])
 
     # TODO: api routes for reviews: new->working, 

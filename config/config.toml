@@ -67,9 +67,14 @@ options = ["stock", "rb", "poster"]
 description = "Tag Images with Good For tags."
 
 [mockups]
-
 mockups_base_folder = "C:/Users/bradf/Downloads/_Mockups"
-smart_object_layer_name = "Artwork"
+photoshop_exe = "C:/Program Files/Adobe/Adobe Photoshop 2025/Photoshop.exe"
+jsx_script = "mockup_generator.jsx"
+params_json = "params.json"
+smart_object_layer_name = "Poster"
 
-[mockups.folders]
-poster_vertical = "_poster/_vertical"
+# Mockup types and orientations
+# Folder structure: <base_folder>/<mockup_type>/<orientation>
+[mockups.types]
+poster = ["horizontal", "vertical"]
+tshirt = ["horizontal", "vertical"]

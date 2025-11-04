@@ -532,7 +532,7 @@ def imagefile(foldername: str, imageset_name: str, filename: str) -> str:
 
 
 def mockups(foldername: str, imageset_name: str, filename: str) -> str:
-    """Return the mockups HTML page for generating mockup images using Photopea."""
+    """Return the mockups HTML page or process mockup generation request."""
     try:
         logging.debug(f"mockups endpoint: folder={foldername}, imageset={imageset_name}, filename={filename}")
         
@@ -545,7 +545,6 @@ def mockups(foldername: str, imageset_name: str, filename: str) -> str:
                                  foldername=foldername,
                                  imageset_name=imageset_name,
                                  filename=filename,
-                                 mockup_folders={},
                                  error=f"Folder '{foldername}' not found"), 404
         
         folder_path = folders_obj.folders[foldername]
@@ -561,7 +560,6 @@ def mockups(foldername: str, imageset_name: str, filename: str) -> str:
                                  foldername=foldername,
                                  imageset_name=imageset_name,
                                  filename=filename,
-                                 mockup_folders={},
                                  error="Access denied"), 403
         
         # Check if file exists
@@ -572,18 +570,83 @@ def mockups(foldername: str, imageset_name: str, filename: str) -> str:
                                  foldername=foldername,
                                  imageset_name=imageset_name,
                                  filename=filename,
-                                 mockup_folders={},
                                  error=f"File '{filename}' not found"), 404
         
-        # Get mockup folders from config
-        mockup_folders = config.config_data.get("mockups", {}).get("folders", {})
+        # Handle POST request - build mockups
+        if request.method == 'POST':
+            try:
+                from img_catalog_tui.core.imagefile_mockups import ImageMockup
+                
+                # Get form data
+                mockup_type = request.form.get('mockup_type')
+                orientation = request.form.get('orientation')
+                layer_name = request.form.get('layer_name', None)
+                
+                # Validate required fields
+                if not mockup_type or not orientation:
+                    return render_template('mockups.html',
+                                         title=f"Generate Mockups: {filename}",
+                                         foldername=foldername,
+                                         imageset_name=imageset_name,
+                                         filename=filename,
+                                         error="Missing required fields: mockup_type and orientation"), 400
+                
+                # Create ImageMockup instance
+                mockup_obj = ImageMockup(
+                    config=config,
+                    image_file_path=file_path,
+                    mockup_type=mockup_type,
+                    orientation=orientation,
+                    layer_name=layer_name if layer_name else None
+                )
+                
+                # Build mockups
+                mockup_obj.build_mockups()
+                
+                # Re-render template with success message
+                return render_template('mockups.html',
+                                     title=f"Generate Mockups: {filename}",
+                                     foldername=foldername,
+                                     imageset_name=imageset_name,
+                                     filename=filename,
+                                     mockup_obj=mockup_obj,
+                                     success=f"Successfully created {len(mockup_obj.mockups)} mockup(s)")
+                
+            except Exception as e:
+                logging.error(f"Error building mockups: {e}", exc_info=True)
+                return render_template('mockups.html',
+                                     title=f"Generate Mockups: {filename}",
+                                     foldername=foldername,
+                                     imageset_name=imageset_name,
+                                     filename=filename,
+                                     error=f"Failed to build mockups: {str(e)}"), 500
+        
+        # Handle GET request - show form or existing mockups
+        # Try to load existing mockup info
+        mockup_obj = None
+        try:
+            from img_catalog_tui.core.imagefile_mockups import ImageMockup
+            
+            # Try to detect if mockups already exist
+            # We'll try common configurations
+            mockup_types = config.config_data.get("mockups", {}).get("types", {})
+            
+            # For now, just show the form - let user select mockup type and orientation
+            # If mockups already exist, they will be detected after POST
+            
+        except Exception as e:
+            logging.debug(f"Could not pre-load mockup info: {e}")
+        
+        # Get available mockup types from config
+        mockup_types = config.config_data.get("mockups", {}).get("types", {})
         
         return render_template('mockups.html',
                              title=f"Generate Mockups: {filename}",
                              foldername=foldername,
                              imageset_name=imageset_name,
                              filename=filename,
-                             mockup_folders=mockup_folders)
+                             mockup_types=mockup_types,
+                             mockup_obj=mockup_obj)
                              
     except Exception as e:
         logging.error(f"Error in mockups endpoint: {e}", exc_info=True)
