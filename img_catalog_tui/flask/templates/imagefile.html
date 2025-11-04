@@ -115,6 +115,17 @@
                                 </button>
                                 <div id="watermarkStatus" style="margin-top: var(--space-xs); font-size: 0.875rem; color: var(--text); opacity: 0.8;"></div>
                             </div>
+                            
+                            <!-- Generate Mockups Button -->
+                            {% if not ('thumbnail' in filename or 'watermark' in filename or 'mockup' in filename) %}
+                            <div>
+                                <a href="/mockups/{{ foldername }}/{{ imageset_name }}/{{ filename }}" 
+                                   class="btn btn-primary" 
+                                   style="width: 100%; display: flex; justify-content: center; align-items: center; text-decoration: none;">
+                                    <span>🎨 Generate Mockups</span>
+                                </a>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

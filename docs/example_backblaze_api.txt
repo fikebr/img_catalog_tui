@@ -1,0 +1,125 @@
+Of course. The tool you're thinking of is **Backblaze B2 Cloud Storage**, which offers an S3-compatible API for object storage. It's known for its simple and affordable pricing.
+
+Here’s a breakdown of its costs and how to integrate it with Python.
+
+-----
+
+## Backblaze B2 Costs 💰
+
+Backblaze B2's pricing is straightforward and generally much cheaper than major cloud providers, especially for data egress (downloads).
+
+  * **Storage**: \*\*$6 per TB per month** ($0.006/GB/month).
+      * The first **10 GB** of storage is **free** every month.
+  * **Downloads (Egress)**: **$0.01 per GB**.
+      * The first **1 GB** of downloads is **free** every day.
+      * Downloads to select CDN partners (like Cloudflare) are completely **free**, which is a significant advantage.
+  * **API Calls (Transactions)**:
+      * **Class A** (listing, creating buckets): **Free**.
+      * **Class B** (uploads, downloads): **$0.004 per 10,000 calls**. The first 2,500 are free daily.
+      * **Class C** (file info, etc.): **$0.004 per 10,000 calls**. The first 2,500 are free daily.
+
+For most typical use cases, the primary cost you'll encounter is for storage.
+
+-----
+
+## Python Integration with `boto3` 🐍
+
+Since Backblaze B2 is S3-compatible, you can use the standard AWS SDK for Python, **`boto3`**, to interact with it. This is the most common and recommended method.
+
+### Step 1: Get Your B2 Credentials
+
+1.  **Sign up** for a Backblaze account and enable B2 Cloud Storage.
+2.  **Create a Bucket**: Give it a unique name. Note the **Endpoint URL** listed for your bucket (e.g., `s3.us-west-004.backblazeb2.com`).
+3.  **Create an Application Key**: Navigate to "App Keys" and create a new key. You will be given a **`keyID`** (like an AWS Access Key ID) and an **`applicationKey`** (like an AWS Secret Access Key). **Save the `applicationKey` somewhere secure, as it will only be shown once.**
+
+### Step 2: Install `boto3`
+
+If you don't have it installed, open your terminal and run:
+
+```bash
+pip install boto3
+```
+
+### Step 3: Write Python Code
+
+The key is to instantiate the `boto3` client or resource by pointing it to your Backblaze B2 endpoint instead of the default AWS endpoint.
+
+Here is a complete example demonstrating how to upload, list, and download files.
+
+```python
+import boto3
+from botocore.exceptions import ClientError
+import os
+
+# --- Configuration ---
+# Replace with your actual B2 credentials and endpoint
+B2_KEY_ID = 'YOUR_B2_KEY_ID'
+B2_APPLICATION_KEY = 'YOUR_B2_APPLICATION_KEY'
+B2_ENDPOINT_URL = 'https://s3.us-west-004.backblazeb2.com' # Use YOUR bucket's S3 endpoint
+B2_BUCKET_NAME = 'your-unique-bucket-name'
+
+# --- Initialize B2 Resource ---
+# This feels more "Pythonic" for object-oriented operations
+s3 = boto3.resource('s3',
+    endpoint_url=B2_ENDPOINT_URL,
+    aws_access_key_id=B2_KEY_ID,
+    aws_secret_access_key=B2_APPLICATION_KEY
+)
+
+# Reference your bucket
+bucket = s3.Bucket(B2_BUCKET_NAME)
+
+def upload_file(file_path, object_name=None):
+    """Upload a file to the B2 bucket."""
+    if object_name is None:
+        object_name = os.path.basename(file_path)
+    try:
+        print(f"Uploading {file_path} to {B2_BUCKET_NAME}/{object_name}...")
+        bucket.upload_file(file_path, object_name)
+        print("Upload successful.")
+    except ClientError as e:
+        print(f"Error uploading file: {e}")
+        return False
+    return True
+
+def list_files():
+    """List all files in the B2 bucket."""
+    print(f"\nFiles in bucket '{B2_BUCKET_NAME}':")
+    try:
+        for obj in bucket.objects.all():
+            print(f"- {obj.key} ({obj.size} bytes)")
+    except ClientError as e:
+        print(f"Error listing files: {e}")
+
+def download_file(object_name, file_path):
+    """Download a file from the B2 bucket."""
+    try:
+        print(f"\nDownloading {object_name} to {file_path}...")
+        bucket.download_file(object_name, file_path)
+        print("Download successful.")
+    except ClientError as e:
+        print(f"Error downloading file: {e}")
+        return False
+    return True
+
+# --- Example Usage ---
+if __name__ == "__main__":
+    # 1. Create a dummy file to upload
+    with open("my_test_file.txt", "w") as f:
+        f.write("Hello, Backblaze B2 from Python!")
+
+    # 2. Upload the file
+    upload_file("my_test_file.txt", "test/my_file.txt")
+
+    # 3. List all files in the bucket
+    list_files()
+
+    # 4. Download the file
+    download_file("test/my_file.txt", "downloaded_file.txt")
+
+    # Clean up local files
+    os.remove("my_test_file.txt")
+    os.remove("downloaded_file.txt")
+```
+
+Simply replace the placeholder values at the top of the script with your actual credentials, endpoint, and bucket name, and you'll be able to manage your B2 storage directly from Python.

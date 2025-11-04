@@ -529,3 +529,62 @@ def imagefile(foldername: str, imageset_name: str, filename: str) -> str:
     except Exception as e:
         logging.error(f"Error in imagefile endpoint: {e}", exc_info=True)
         return jsonify({"error": "Internal server error"}), 500
+
+
+def mockups(foldername: str, imageset_name: str, filename: str) -> str:
+    """Return the mockups HTML page for generating mockup images using Photopea."""
+    try:
+        logging.debug(f"mockups endpoint: folder={foldername}, imageset={imageset_name}, filename={filename}")
+        
+        # Get folder path from Folders registry
+        folders_obj = Folders()
+        if foldername not in folders_obj.folders:
+            logging.warning(f"Folder '{foldername}' not found in registry")
+            return render_template('mockups.html',
+                                 title="Mockups - Folder Not Found",
+                                 foldername=foldername,
+                                 imageset_name=imageset_name,
+                                 filename=filename,
+                                 mockup_folders={},
+                                 error=f"Folder '{foldername}' not found"), 404
+        
+        folder_path = folders_obj.folders[foldername]
+        
+        # Construct full file path
+        file_path = os.path.join(folder_path, imageset_name, filename)
+        
+        # Security check: ensure the path is within the allowed folder
+        if not os.path.abspath(file_path).startswith(os.path.abspath(folder_path)):
+            logging.warning(f"Security violation: path traversal attempt for {foldername}/{imageset_name}/{filename}")
+            return render_template('mockups.html',
+                                 title="Mockups - Access Denied",
+                                 foldername=foldername,
+                                 imageset_name=imageset_name,
+                                 filename=filename,
+                                 mockup_folders={},
+                                 error="Access denied"), 403
+        
+        # Check if file exists
+        if not os.path.exists(file_path):
+            logging.warning(f"Image file not found: {file_path}")
+            return render_template('mockups.html',
+                                 title="Mockups - File Not Found",
+                                 foldername=foldername,
+                                 imageset_name=imageset_name,
+                                 filename=filename,
+                                 mockup_folders={},
+                                 error=f"File '{filename}' not found"), 404
+        
+        # Get mockup folders from config
+        mockup_folders = config.config_data.get("mockups", {}).get("folders", {})
+        
+        return render_template('mockups.html',
+                             title=f"Generate Mockups: {filename}",
+                             foldername=foldername,
+                             imageset_name=imageset_name,
+                             filename=filename,
+                             mockup_folders=mockup_folders)
+                             
+    except Exception as e:
+        logging.error(f"Error in mockups endpoint: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500

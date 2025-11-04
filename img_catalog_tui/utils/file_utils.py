@@ -34,7 +34,7 @@ def is_image_file(file_path: str) -> bool:
         True if the file is an image, False otherwise
     """
     _, ext = parse_file_parts(file_path)
-    image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']
+    image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg']
     return ext.lower() in image_extensions
 
 

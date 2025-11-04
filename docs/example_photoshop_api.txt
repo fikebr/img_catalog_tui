@@ -1,0 +1,221 @@
+Excellent\! Here’s a step-by-step guide and a complete Python code example for using the Adobe Photoshop API to replace a smart object.
+
+This process involves three main stages:
+
+1.  **Authentication:** Getting a temporary access token from Adobe.
+2.  **Job Submission:** Telling the API where your files are (in cloud storage) and what to do with them.
+3.  **Polling & Downloading:** Checking for job completion and getting the final image.
+
+-----
+
+### ✅ Prerequisites: What You Need First
+
+Before running the code, you must have these things set up:
+
+1.  **Adobe Developer Project:**
+
+      * Go to the [Adobe Developer Console](https://www.google.com/search?q=https://developer.adobe.com/console/).
+      * Create a new project.
+      * Add an API, select **"Photoshop API"**, and choose **"OAuth Server-to-Server"** authentication.
+      * Take note of your **Client ID**, **Client Secret**, and **Organization ID**.
+
+2.  **Cloud Storage (e.g., AWS S3):**
+
+      * The Adobe API **cannot** access local files. You must upload your files to a cloud provider. AWS S3 is the most common.
+      * Create an S3 bucket.
+      * Upload your mockup `product-mockup.psd` and your replacement artwork `my-artwork.png` to the bucket.
+      * You'll need AWS credentials (Access Key and Secret Key) with permission to generate "pre-signed URLs" for these files.
+
+-----
+
+### 🐍 The Python Code Example
+
+This script uses the `requests` library for API calls and `boto3` for generating the AWS S3 URLs.
+
+**Step 0: Installation**
+First, install the necessary Python libraries.
+
+```bash
+pip install requests boto3
+```
+
+**Step 1: The Full Script**
+Save this as a Python file, for example, `run_mockup.py`.
+
+```python
+import requests
+import time
+import boto3
+from botocore.exceptions import ClientError
+import os
+
+# --- 1. CONFIGURATION ---
+# Adobe API Credentials (from your Adobe Developer Console project)
+ADOBE_CLIENT_ID = os.environ.get("ADOBE_CLIENT_ID", "YOUR_ADOBE_CLIENT_ID")
+ADOBE_CLIENT_SECRET = os.environ.get("ADOBE_CLIENT_SECRET", "YOUR_ADOBE_CLIENT_SECRET")
+
+# AWS Credentials and S3 Bucket Info
+AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID", "YOUR_AWS_ACCESS_KEY")
+AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY", "YOUR_AWS_SECRET_KEY")
+AWS_S3_BUCKET = "your-s3-bucket-name"
+AWS_S3_REGION = "us-east-1" # The region your bucket is in
+
+# File paths in your S3 bucket
+INPUT_PSD_KEY = "mockups/product-mockup.psd"
+REPLACEMENT_ARTWORK_KEY = "artwork/my-artwork.png"
+OUTPUT_PNG_KEY = "output/final-mockup.png"
+
+# Smart Object Layer Name (Must be EXACTLY as it appears in Photoshop)
+SMART_OBJECT_LAYER_NAME = "Your Smart Object Layer Name"
+
+# --- 2. HELPER FUNCTIONS ---
+
+def get_adobe_access_token():
+    """Authenticates with Adobe and retrieves an access token."""
+    print("🔑 Getting Adobe access token...")
+    url = "https://ims-na1.adobelogin.com/ims/token/v3"
+    payload = {
+        'client_id': ADOBE_CLIENT_ID,
+        'client_secret': ADOBE_CLIENT_SECRET,
+        'grant_type': 'client_credentials',
+        'scope': 'openid,AdobeID,read_organizations,firefly_api,ff_enterprise,ps_api'
+    }
+    response = requests.post(url, data=payload)
+    response.raise_for_status()
+    print("✅ Access token received.")
+    return response.json()['access_token']
+
+def generate_presigned_url(bucket, object_key, expiration=3600):
+    """Generates a pre-signed URL to access an S3 object."""
+    s3_client = boto3.client(
+        's3',
+        aws_access_key_id=AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+        region_name=AWS_S3_REGION
+    )
+    try:
+        url = s3_client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': bucket, 'Key': object_key},
+            ExpiresIn=expiration
+        )
+        # We also need a pre-signed URL for PUT to upload the result
+        put_url = s3_client.generate_presigned_url(
+            'put_object',
+            Params={'Bucket': bucket, 'Key': object_key},
+            ExpiresIn=expiration
+        )
+        return url, put_url
+    except ClientError as e:
+        print(f"❌ Error generating S3 URL: {e}")
+        return None, None
+
+# --- 3. MAIN EXECUTION ---
+
+if __name__ == "__main__":
+    try:
+        # Step 1: Authenticate
+        access_token = get_adobe_access_token()
+
+        # Step 2: Generate Pre-signed URLs for our files
+        print("🔗 Generating pre-signed S3 URLs...")
+        input_psd_url, _ = generate_presigned_url(AWS_S3_BUCKET, INPUT_PSD_KEY)
+        artwork_url, _ = generate_presigned_url(AWS_S3_BUCKET, REPLACEMENT_ARTWORK_KEY)
+        _, output_png_url = generate_presigned_url(AWS_S3_BUCKET, OUTPUT_PNG_KEY)
+
+        if not all([input_psd_url, artwork_url, output_png_url]):
+            raise Exception("Failed to generate one or more S3 URLs.")
+        print("✅ URLs generated.")
+
+        # Step 3: Construct and submit the Photoshop API job
+        print("🚀 Submitting job to Photoshop API...")
+        job_url = f"https://image.adobe.io/pie/psdService/smartObject"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "x-api-key": ADOBE_CLIENT_ID,
+            "Content-Type": "application/json"
+        }
+        
+        # This JSON payload tells the API what to do
+        payload = {
+            "inputs": [
+                {"href": input_psd_url, "storage": "external"}, # The main PSD
+                {"href": artwork_url, "storage": "external"}      # The new artwork
+            ],
+            "options": {
+                "layers": [
+                    {
+                        "name": SMART_OBJECT_LAYER_NAME,
+                        "input": 1 # '1' refers to the second item in the "inputs" array
+                    }
+                ]
+            },
+            "outputs": [
+                {
+                    "href": output_png_url,
+                    "storage": "external",
+                    "type": "image/png"
+                }
+            ]
+        }
+
+        response = requests.post(job_url, headers=headers, json=payload)
+        response.raise_for_status()
+        
+        # The initial response contains a link to check the job status
+        status_url = response.json()['_links']['self']['href']
+        print(f"✅ Job submitted successfully. Status URL: {status_url}")
+
+        # Step 4: Poll for job completion
+        print("⏳ Waiting for job to complete (polling every 5 seconds)...")
+        job_status = "running"
+        while job_status in ["pending", "running"]:
+            time.sleep(5)
+            status_response = requests.get(status_url, headers=headers)
+            status_response.raise_for_status()
+            job_details = status_response.json()
+            job_status = job_details.get('status', 'running')
+            print(f"   Current status: {job_status}")
+
+        if job_status == "succeeded":
+            print("🎉 Job succeeded! Your mockup is ready.")
+            # The file is now in your S3 bucket at OUTPUT_PNG_KEY
+            # You can optionally download it locally:
+            final_image_url, _ = generate_presigned_url(AWS_S3_BUCKET, OUTPUT_PNG_KEY, 60)
+            local_filename = "final-mockup.png"
+            print(f"   Downloading result to '{local_filename}'...")
+            with requests.get(final_image_url, stream=True) as r:
+                r.raise_for_status()
+                with open(local_filename, 'wb') as f:
+                    for chunk in r.iter_content(chunk_size=8192):
+                        f.write(chunk)
+            print("   Download complete.")
+
+        else:
+            print(f"❌ Job failed. Status: {job_status}")
+            print("Details:", job_details.get('errors'))
+
+    except requests.exceptions.HTTPError as e:
+        print(f"❌ An API error occurred: {e.response.status_code}")
+        print(e.response.text)
+    except Exception as e:
+        print(f"❌ An unexpected error occurred: {e}")
+```
+
+-----
+
+### ⚙️ How to Run the Code
+
+1.  **Fill in the Placeholders:** In the `CONFIGURATION` section, replace all the placeholder values (`YOUR_...`) with your actual Adobe and AWS credentials and S3 paths.
+
+      * **Pro Tip:** It's better to use environment variables (like the `os.environ.get()` example) than to hardcode secrets in your script.
+
+2.  **Verify `SMART_OBJECT_LAYER_NAME`:** Double-check this value. It must be an exact, case-sensitive match to the layer name in your PSD file.
+
+3.  **Execute the Script:** Run it from your terminal.
+
+    ```bash
+    python run_mockup.py
+    ```
+
+You'll see a series of print statements tracking the progress, and if successful, the final `final-mockup.png` will be downloaded to the same directory where you ran the script. It will also be available in your S3 bucket at the output path you specified.

@@ -1,0 +1,499 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block head %}
+<style>
+    .mockups-container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+    
+    .error-message {
+        background-color: #fee;
+        border: 1px solid #fcc;
+        padding: 1rem;
+        border-radius: 4px;
+        margin-bottom: 1rem;
+        color: #c00;
+    }
+    
+    .mockups-form {
+        background-color: #f8f9fa;
+        padding: 2rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+    }
+    
+    .mockups-form h2 {
+        color: #1a1a1a;
+        margin-top: 0;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: bold;
+        color: #1a1a1a;
+    }
+    
+    .form-group select,
+    .form-group input[type="text"] {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font-size: 1rem;
+        font-family: inherit;
+        color: #1a1a1a;
+        background-color: #fff;
+    }
+    
+    .form-group small {
+        display: block;
+        margin-top: 0.25rem;
+        color: #4a4a4a;
+        font-size: 0.875rem;
+    }
+    
+    .btn {
+        padding: 0.75rem 2rem;
+        background-color: #2563eb;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 1rem;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    
+    .btn:hover {
+        background-color: #1d4ed8;
+    }
+    
+    .btn:disabled {
+        background-color: #94a3b8;
+        cursor: not-allowed;
+    }
+    
+    .progress-container {
+        margin-top: 2rem;
+        display: none;
+    }
+    
+    .progress-container.active {
+        display: block;
+    }
+    
+    .progress-bar {
+        width: 100%;
+        height: 30px;
+        background-color: #e5e7eb;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background-color: #2563eb;
+        transition: width 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+    }
+    
+    .progress-text {
+        margin-bottom: 0.5rem;
+        font-weight: bold;
+        color: #1a1a1a;
+    }
+    
+    .progress-log {
+        background-color: #1e293b;
+        color: #e2e8f0;
+        padding: 1rem;
+        border-radius: 4px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.875rem;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+    
+    .progress-log div {
+        margin-bottom: 0.25rem;
+    }
+    
+    .progress-log .success {
+        color: #86efac;
+    }
+    
+    .progress-log .error {
+        color: #fca5a5;
+    }
+    
+    .image-info {
+        background-color: #f1f5f9;
+        padding: 1rem;
+        border-radius: 4px;
+        margin-bottom: 2rem;
+    }
+    
+    .image-info h3 {
+        margin-top: 0;
+        margin-bottom: 0.5rem;
+        color: #1a1a1a;
+    }
+    
+    .image-info p {
+        margin: 0.25rem 0;
+        font-family: monospace;
+        color: #1a1a1a;
+    }
+    
+    .image-info strong {
+        color: #1a1a1a;
+    }
+    
+    iframe#photopea {
+        width: 1px;
+        height: 1px;
+        border: 0;
+        position: absolute;
+        left: -9999px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mockups-container">
+    {% if error is defined %}
+    <div class="error-message">
+        <strong>Error:</strong> {{ error }}
+    </div>
+    {% else %}
+    
+    <div class="image-info">
+        <h3>Image File</h3>
+        <p><strong>Folder:</strong> {{ foldername }}</p>
+        <p><strong>Imageset:</strong> {{ imageset_name }}</p>
+        <p><strong>Filename:</strong> {{ filename }}</p>
+    </div>
+    
+    <div class="mockups-form">
+        <h2>Mockup Configuration</h2>
+        
+        <div class="form-group">
+            <label for="mockup_folder">Mockup Folder</label>
+            <select id="mockup_folder" name="mockup_folder">
+                <option value="">-- Select a mockup folder --</option>
+                {% for folder_key, folder_path in mockup_folders.items() %}
+                <option value="{{ folder_key }}">{{ folder_key }}</option>
+                {% endfor %}
+            </select>
+            <small>Select the folder containing mockup PSD files</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="layer_name">Smart Object Layer Name</label>
+            <input type="text" id="layer_name" name="layer_name" value="Artwork" placeholder="Artwork">
+            <small>Name of the smart object layer in the PSD files</small>
+        </div>
+        
+        <button id="btn_run" class="btn">Generate Mockups</button>
+    </div>
+    
+    <div class="progress-container" id="progress_container">
+        <div class="progress-text" id="progress_text">Initializing...</div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progress_fill" style="width: 0%;">0%</div>
+        </div>
+        <div class="progress-log" id="progress_log"></div>
+    </div>
+    
+    <iframe id="photopea" src="https://www.photopea.com#{}"></iframe>
+    
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Configuration
+const foldername = "{{ foldername }}";
+const imagesetName = "{{ imageset_name }}";
+const filename = "{{ filename }}";
+
+// DOM elements
+const btnRun = document.getElementById('btn_run');
+const mockupFolderSelect = document.getElementById('mockup_folder');
+const layerNameInput = document.getElementById('layer_name');
+const progressContainer = document.getElementById('progress_container');
+const progressText = document.getElementById('progress_text');
+const progressFill = document.getElementById('progress_fill');
+const progressLog = document.getElementById('progress_log');
+const photopeaFrame = document.getElementById('photopea').contentWindow;
+
+// State
+let isProcessing = false;
+let mockupFiles = [];
+let config = {};
+
+// Logging
+function log(message, type = 'info') {
+    const div = document.createElement('div');
+    if (type === 'success') div.className = 'success';
+    if (type === 'error') div.className = 'error';
+    div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+    progressLog.appendChild(div);
+    progressLog.scrollTop = progressLog.scrollHeight;
+    console.log(message);
+}
+
+// Update progress bar
+function updateProgress(current, total, message) {
+    const percent = Math.round((current / total) * 100);
+    progressText.textContent = message;
+    progressFill.style.width = percent + '%';
+    progressFill.textContent = percent + '%';
+}
+
+// Message handler state
+let doneResolve = null;
+let pngResolve = null;
+
+// Unified message handler
+window.addEventListener("message", e => {
+    // Handle "done" messages from Photopea
+    if (e.data === "done" && doneResolve) {
+        const resolve = doneResolve;
+        doneResolve = null;
+        resolve();
+    }
+    // Handle PNG ArrayBuffer from Photopea
+    else if (e.data instanceof ArrayBuffer && pngResolve) {
+        const resolve = pngResolve;
+        pngResolve = null;
+        resolve(e.data);
+    }
+});
+
+// Wait for Photopea "done" message
+function waitDone() {
+    return new Promise(resolve => {
+        doneResolve = resolve;
+    });
+}
+
+// Wait for PNG export from Photopea
+function waitForPNG() {
+    return new Promise(resolve => {
+        pngResolve = resolve;
+    });
+}
+
+// Load file as ArrayBuffer
+async function loadFileAsArrayBuffer(url) {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Failed to load file: ${url}`);
+    return await response.arrayBuffer();
+}
+
+// Close all documents in Photopea
+async function closeAllDocuments() {
+    photopeaFrame.postMessage(`
+        while (app.documents.length > 0) {
+            app.activeDocument.close(SaveOptions.DONOTSAVECHANGES);
+        }
+    `, "*");
+    await waitDone();
+}
+
+// Process one mockup PSD
+async function processOneMockup(psdFilename, artworkBuffer, layerName, mockupBasename, outputFilename) {
+    try {
+        log(`Processing: ${mockupBasename}...`);
+        
+        // 0) Close any leftover documents from previous run
+        await closeAllDocuments();
+        
+        // 1) Load PSD into Photopea
+        const mockupFolder = mockupFolderSelect.value;
+        const psdUrl = `/api/mockups/psd/${foldername}/${imagesetName}/${filename}/${mockupFolder}/${psdFilename}`;
+        const psdBuffer = await loadFileAsArrayBuffer(psdUrl);
+        photopeaFrame.postMessage(psdBuffer, "*");
+        await waitDone();
+        
+        // 2) Open smart object for editing
+        photopeaFrame.postMessage(`
+            var mock = app.activeDocument;
+            var so = mock.layers.getByName("${layerName}");
+            mock.activeLayer = so;
+            executeAction(stringIDToTypeID("placedLayerEditContents"));
+        `, "*");
+        await waitDone();
+        
+        // 3) Load artwork into Photopea (becomes active doc)
+        photopeaFrame.postMessage(artworkBuffer, "*");
+        await waitDone();
+        
+        // 4) Copy artwork into SO, fit, save, close, export
+        photopeaFrame.postMessage(`
+            var artDoc = app.activeDocument;
+            artDoc.selection.selectAll();
+            artDoc.selection.copy();
+            
+            // Close the artwork doc (we're done with it)
+            artDoc.close(SaveOptions.DONOTSAVECHANGES);
+            
+            // Now the SO doc is active
+            var soDoc = app.activeDocument;
+            while (soDoc.layers.length > 0) soDoc.layers[0].remove();
+            soDoc.paste();
+            var artLayer = soDoc.activeLayer;
+            
+            function fitToCanvas(layer) {
+                var d = soDoc;
+                var b = layer.bounds;
+                var sx = d.width / b[2];
+                var sy = d.height / b[3];
+                var s = Math.min(sx, sy) * 100;
+                layer.resize(s, s, AnchorPosition.MIDDLECENTER);
+                b = layer.bounds;
+                var dx = (d.width - b[2]) / 2 - b[0];
+                var dy = (d.height - b[3]) / 2 - b[1];
+                layer.translate(dx, dy);
+            }
+            fitToCanvas(artLayer);
+            
+            soDoc.save();
+            soDoc.close(SaveOptions.SAVECHANGES);
+            
+            // Now the main mockup is active - export it
+            app.activeDocument.saveToOE("png");
+        `, "*");
+        await waitDone();
+        
+        // Wait for the PNG ArrayBuffer to be received
+        log(`Waiting for PNG export...`);
+        const pngData = await waitForPNG();
+        
+        // Download the PNG
+        const blob = new Blob([pngData], {type: "image/png"});
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = outputFilename;
+        a.click();
+        log(`Downloaded: ${outputFilename}`, 'success');
+        
+        log(`Completed: ${mockupBasename}`, 'success');
+        return true;
+        
+    } catch (error) {
+        log(`Error processing ${mockupBasename}: ${error.message}`, 'error');
+        // Try to cleanup on error
+        try {
+            await closeAllDocuments();
+        } catch (e) {
+            // Ignore cleanup errors
+        }
+        return false;
+    }
+}
+
+// Main processing function
+async function generateMockups() {
+    if (isProcessing) return;
+    
+    const mockupFolder = mockupFolderSelect.value;
+    const layerName = layerNameInput.value.trim();
+    
+    if (!mockupFolder) {
+        alert('Please select a mockup folder');
+        return;
+    }
+    
+    if (!layerName) {
+        alert('Please enter a smart object layer name');
+        return;
+    }
+    
+    try {
+        isProcessing = true;
+        btnRun.disabled = true;
+        progressContainer.classList.add('active');
+        progressLog.innerHTML = '';
+        
+        log('Fetching mockup files...');
+        
+        // Get mockup files list from API
+        const response = await fetch(`/api/mockups/files/${foldername}/${imagesetName}/${filename}/${mockupFolder}`);
+        if (!response.ok) {
+            throw new Error(`API error: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+        mockupFiles = data.mockup_files;
+        config = data.config;
+        
+        log(`Found ${mockupFiles.length} mockup files`);
+        
+        if (mockupFiles.length === 0) {
+            throw new Error('No PSD files found in selected mockup folder');
+        }
+        
+        // Load artwork image
+        log('Loading artwork image...');
+        updateProgress(0, mockupFiles.length, 'Loading artwork...');
+        const artworkUrl = `/images/${foldername}/${imagesetName}/${filename}`;
+        const artworkBuffer = await loadFileAsArrayBuffer(artworkUrl);
+        log('Artwork loaded successfully');
+        
+        // Process each mockup
+        let successCount = 0;
+        for (let i = 0; i < mockupFiles.length; i++) {
+            const mockup = mockupFiles[i];
+            const mockupBasename = mockup.basename;
+            const psdFilename = mockup.filename;
+            
+            // Generate output filename
+            const outputFilename = config.output_template.replace('{mockup}', mockupBasename);
+            
+            updateProgress(i + 1, mockupFiles.length, `Processing ${i + 1}/${mockupFiles.length}: ${mockupBasename}`);
+            
+            const success = await processOneMockup(
+                psdFilename,
+                artworkBuffer,
+                layerName,
+                mockupBasename,
+                outputFilename
+            );
+            
+            if (success) successCount++;
+        }
+        
+        updateProgress(mockupFiles.length, mockupFiles.length, 'Complete!');
+        log(`Finished: ${successCount}/${mockupFiles.length} mockups generated successfully`, 'success');
+        
+    } catch (error) {
+        log(`Fatal error: ${error.message}`, 'error');
+        alert(`Error: ${error.message}`);
+    } finally {
+        isProcessing = false;
+        btnRun.disabled = false;
+    }
+}
+
+// Event listeners
+btnRun.addEventListener('click', generateMockups);
+</script>
+{% endblock %}
+

@@ -1,0 +1,114 @@
+# app.py
+from flask import Flask, send_from_directory, render_template_string
+app = Flask(__name__)
+
+HTML = """
+<!doctype html>
+<meta charset="utf-8">
+<style>iframe{width:1px;height:1px;border:0}</style>
+
+<iframe id="pp" src="https://www.photopea.com#{}"></iframe>
+
+<input id="psd" type="file" accept=".psd,.psb" />
+<input id="art" type="file" accept="image/*,.psd,.psb" />
+<input id="layerName" placeholder="Smart layer name (e.g. Artwork)" value="Artwork">
+<button id="run">Run</button>
+
+<script>
+const frame = document.getElementById("pp").contentWindow;
+
+// Wait for "done" messages (Photopea posts "done" after each command)
+function waitDone() {
+  return new Promise(res => {
+    function onMsg(e){ if(e.data === "done"){ window.removeEventListener("message", onMsg); res(); } }
+    window.addEventListener("message", onMsg);
+  });
+}
+
+// Receive exported PNG bytes (ArrayBuffer) → download
+window.addEventListener("message", e => {
+  if (e.data instanceof ArrayBuffer) {
+    const blob = new Blob([e.data], {type: "image/png"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "mockup.png";
+    a.click();
+  }
+});
+
+async function buf(file){ return await file.arrayBuffer(); }
+
+document.getElementById("run").addEventListener("click", async () => {
+  const psd = document.getElementById("psd").files[0];
+  const art = document.getElementById("art").files[0];
+  const layerName = document.getElementById("layerName").value || "Artwork";
+  if(!psd || !art){ alert("Pick a PSD and an artwork image"); return; }
+
+  // 1) Send PSD bytes → opens as the active document
+  frame.postMessage(await buf(psd), "*");
+  await waitDone();
+
+  // 2) Open the smart object for editing
+  frame.postMessage(`
+    var mock = app.activeDocument;
+    var so = mock.layers.getByName("${layerName}");
+    mock.activeLayer = so;
+    executeAction(stringIDToTypeID("placedLayerEditContents"));
+  `, "*");
+  await waitDone();
+
+  // 3) Send artwork bytes → opens as a new document (top / active)
+  frame.postMessage(await buf(art), "*");
+  await waitDone();
+
+  // 4) Copy the whole artwork doc into the smart-object doc, fit, save, close SO, export PNG
+  frame.postMessage(`
+    // At this point, activeDocument is the artwork doc.
+    var artDoc = app.activeDocument;
+
+    // Select-all + copy
+    artDoc.selection.selectAll();
+    artDoc.selection.copy();
+    // Switch to the SO doc (the next document in stack)
+    app.activeDocument = app.documents[1]; // SO doc should be second in stack
+    var soDoc = app.activeDocument;
+    // Remove all layers
+    while (soDoc.layers.length > 0) soDoc.layers[0].remove();
+    // Paste artwork as a new layer
+    soDoc.paste();
+    var artLayer = soDoc.activeLayer;
+
+    // Fit pasted layer to canvas, keep aspect
+    function fitToCanvas(layer) {
+      var d = soDoc;
+      var b = layer.bounds; // [x, y, w, h] in px
+      var sx = d.width  / b[2];
+      var sy = d.height / b[3];
+      var s  = Math.min(sx, sy) * 100;
+      layer.resize(s, s, AnchorPosition.MIDDLECENTER);
+      // recalc bounds after resize
+      b = layer.bounds;
+      var dx = (d.width  - b[2]) / 2 - b[0];
+      var dy = (d.height - b[3]) / 2 - b[1];
+      layer.translate(dx, dy);
+    }
+    fitToCanvas(artLayer);
+
+    // Save & close SO doc → returns to main mockup PSD
+    soDoc.save();
+    soDoc.close();
+
+    // Now export the composed mockup back to Outer Environment
+    app.activeDocument.saveToOE("png");
+  `, "*");
+  await waitDone();
+});
+</script>
+"""
+
+@app.route("/")
+def index():
+    return render_template_string(HTML)
+
+if __name__ == "__main__":
+    app.run(port=5000, debug=True)

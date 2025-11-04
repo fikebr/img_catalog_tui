@@ -101,6 +101,19 @@ class ImageFile():
         except Exception as e:
             logging.error(f"Error checking thumbnail for {self.file_path}: {e}")
             return ""
+        
+    @property
+    def orientation(self) -> str:
+
+        if self.height > self.width:
+            return "vertical"
+        
+        if self.width > self.height:
+            return "horizontal"
+        
+        return "square"
+        
+        
     
     def create_thumbnail(self, size: int = 500) -> str:
         """Creates a thumbnail of the image with the specified maximum size."""
