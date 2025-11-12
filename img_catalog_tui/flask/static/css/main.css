@@ -458,9 +458,30 @@ textarea:focus {
 
 .folders-grid,
 .imagesets-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-    gap: var(--space-lg);
+    column-count: 3;
+    column-gap: var(--space-lg);
+}
+
+.folders-grid > *,
+.imagesets-grid > * {
+    break-inside: avoid;
+    margin-bottom: var(--space-lg);
+    display: inline-block;
+    width: 100%;
+}
+
+@media (max-width: 1200px) {
+    .folders-grid,
+    .imagesets-grid {
+        column-count: 2;
+    }
+}
+
+@media (max-width: 768px) {
+    .folders-grid,
+    .imagesets-grid {
+        column-count: 1;
+    }
 }
 
 .folder-card {
@@ -643,9 +664,7 @@ textarea:focus {
     
     .grid-2,
     .grid-3,
-    .grid-4,
-    .folders-grid,
-    .imagesets-grid {
+    .grid-4 {
         grid-template-columns: 1fr;
     }
     
@@ -845,9 +864,7 @@ textarea:focus {
     
     .grid-2,
     .grid-3,
-    .grid-4,
-    .folders-grid,
-    .imagesets-grid {
+    .grid-4 {
         grid-template-columns: 1fr;
     }
     
