@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block page_title %}{{ title }}{% endblock %}
+
+{% block content %}
+{% if error %}
+    <div class="error-message">
+        {{ error }}
+    </div>
+{% else %}
+    <div class="section">
+        <h2 class="section-title">Move Imageset</h2>
+        <div class="folder-path" style="font-family: var(--font-mono); background: var(--muted); padding: var(--space-sm); border-radius: var(--radius-sm); margin-bottom: var(--space-md); word-break: break-all;">
+            {{ foldername }} / {{ imageset_name }}
+        </div>
+        
+        {% if imageset_data %}
+            <div class="card" style="max-width: 800px;">
+                <div class="card-header">
+                    <h3 style="margin: 0; color: var(--accent); font-size: 1.1rem;">📦 Move to Folder</h3>
+                </div>
+                <div class="card-content">
+                    <p style="margin-bottom: var(--space-lg); color: var(--text); opacity: 0.9;">
+                        Select the destination folder for this imageset. The imageset will be moved from 
+                        <strong>{{ foldername }}</strong> to the selected folder.
+                    </p>
+                    
+                    <form id="moveForm" style="display: grid; gap: var(--space-md);">
+                        <!-- Target Folder Selection -->
+                        <div class="form-group">
+                            <label for="target_folder" style="display: block; font-weight: 600; margin-bottom: var(--space-xs); color: var(--text);">
+                                Target Folder
+                            </label>
+                            <select id="target_folder" name="target_folder" class="form-control" required style="width: 100%; padding: var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text);">
+                                <option value="">Select destination folder...</option>
+                                {% for folder_key, folder_path in available_folders.items() %}
+                                    {% if folder_key != foldername %}
+                                        <option value="{{ folder_key }}">{{ folder_key }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                            <div style="font-size: 0.75rem; color: var(--text); opacity: 0.7; margin-top: var(--space-xs);">
+                                Choose a different folder to move this imageset to.
+                            </div>
+                        </div>
+                        
+                        <!-- Warning Message -->
+                        <div style="background: var(--muted); padding: var(--space-md); border-radius: var(--radius-sm); border-left: 4px solid var(--accent);">
+                            <strong>⚠️ Important:</strong> This action will move the entire imageset folder to the selected location.
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Form Actions -->
+            <div class="section" style="margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid var(--border); max-width: 800px;">
+                <div style="display: flex; gap: var(--space-md); flex-wrap: wrap;">
+                    <button type="button" id="moveBtn" class="btn btn-primary">
+                        📦 Move Imageset
+                    </button>
+                    <a href="/imageset/{{ foldername }}/{{ imageset_name }}" class="btn btn-secondary">
+                        ❌ Cancel
+                    </a>
+                    <a href="/folder/{{ foldername }}" class="btn btn-secondary">
+                        ← Back to Folder
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Status Message Area -->
+            <div id="statusMessage" style="margin-top: var(--space-md); max-width: 800px;"></div>
+        {% endif %}
+    </div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const moveBtn = document.getElementById('moveBtn');
+    const targetFolder = document.getElementById('target_folder');
+    const statusMessage = document.getElementById('statusMessage');
+    
+    moveBtn.addEventListener('click', function() {
+        const targetFolderValue = targetFolder.value;
+        
+        // Validate selection
+        if (!targetFolderValue) {
+            showMessage('Please select a destination folder.', 'error');
+            return;
+        }
+        
+        // Confirm action
+        if (!confirm(`Are you sure you want to move this imageset to "${targetFolderValue}"?`)) {
+            return;
+        }
+        
+        // Disable button and show loading state
+        moveBtn.disabled = true;
+        moveBtn.textContent = '⏳ Moving...';
+        
+        // Make API call
+        fetch('/api/imageset/{{ foldername }}/{{ imageset_name }}/move', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                target_foldername: targetFolderValue
+            })
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.error || 'Failed to move imageset');
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            showMessage('✅ Imageset moved successfully! Redirecting...', 'success');
+            
+            // Redirect to the imageset in the new folder after a short delay
+            setTimeout(() => {
+                window.location.href = `/imageset/${targetFolderValue}/{{ imageset_name }}`;
+            }, 1500);
+        })
+        .catch(error => {
+            showMessage('❌ Error: ' + error.message, 'error');
+            moveBtn.disabled = false;
+            moveBtn.textContent = '📦 Move Imageset';
+        });
+    });
+    
+    function showMessage(message, type) {
+        const messageClass = type === 'error' ? 'error-message' : 'success-message';
+        statusMessage.innerHTML = `<div class="${messageClass}" style="padding: var(--space-md); border-radius: var(--radius-sm);">${message}</div>`;
+    }
+    
+    // Add keyboard shortcut
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            window.location.href = '/imageset/{{ foldername }}/{{ imageset_name }}';
+        }
+    });
+});
+</script>
+{% endblock %}
+
+

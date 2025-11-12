@@ -444,6 +444,63 @@ def imageset_edit(foldername: str, imageset_name: str) -> str:
         return jsonify({"error": "Internal server error"}), 500
 
 
+def imageset_move_form(foldername: str, imageset_name: str) -> str:
+    """Return the imageset move HTML page for moving imageset to another folder."""
+    try:
+        logging.debug(f"imageset_move_form endpoint: folder={foldername}, imageset={imageset_name}")
+        
+        # Build the API URL to fetch imageset data
+        api_url = f"{request.host_url}api/imageset/{foldername}/{imageset_name}"
+        
+        # Make request to the API endpoint
+        try:
+            response = requests.get(api_url, timeout=10)
+            if response.status_code == 404:
+                return render_template('imageset_move.html',
+                                     title="Imageset Not Found",
+                                     foldername=foldername,
+                                     imageset_name=imageset_name,
+                                     imageset_data=None,
+                                     available_folders={},
+                                     error="Imageset not found"), 404
+            elif response.status_code != 200:
+                logging.error(f"API returned status {response.status_code}: {response.text}")
+                return render_template('imageset_move.html',
+                                     title="Error",
+                                     foldername=foldername,
+                                     imageset_name=imageset_name,
+                                     imageset_data=None,
+                                     available_folders={},
+                                     error="Failed to fetch imageset data"), 500
+            
+            imageset_data = response.json()
+            
+        except requests.RequestException as e:
+            logging.error(f"Error fetching imageset data from API: {e}")
+            return render_template('imageset_move.html',
+                                 title="Error",
+                                 foldername=foldername,
+                                 imageset_name=imageset_name,
+                                 imageset_data=None,
+                                 available_folders={},
+                                 error="Failed to connect to API"), 500
+        
+        # Get available folders from Folders registry
+        folders_obj = Folders()
+        available_folders = folders_obj.folders
+        
+        return render_template('imageset_move.html',
+                             title=f"Move Imageset: {imageset_name}",
+                             foldername=foldername,
+                             imageset_name=imageset_name,
+                             imageset_data=imageset_data,
+                             available_folders=available_folders)
+                             
+    except Exception as e:
+        logging.error(f"Error in imageset_move_form endpoint: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+
 def imagefile(foldername: str, imageset_name: str, filename: str) -> str:
     """Return the imagefile HTML page that displays detailed information about a specific image file."""
     try:

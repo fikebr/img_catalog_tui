@@ -561,6 +561,217 @@ def mockup_create():
         return jsonify({"error": "Internal server error"}), 500
 
 
+def imageset_move(foldername: str, imageset: str):
+    """Move an imageset to a different folder."""
+    try:
+        # Validate request method
+        if request.method != 'POST':
+            return jsonify({"error": "Method not allowed"}), 405
+        
+        # Get JSON data from request
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No JSON data provided"}), 400
+        
+        # Validate required field
+        if 'target_foldername' not in data:
+            return jsonify({"error": "Missing required field: target_foldername"}), 400
+        
+        target_foldername = data['target_foldername']
+        
+        # Get folder paths from Folders registry
+        folders_obj = Folders()
+        
+        # Validate source folder exists
+        if foldername not in folders_obj.folders:
+            logging.warning(f"Source folder '{foldername}' not found in registry")
+            return jsonify({"error": f"Source folder '{foldername}' not found"}), 404
+        
+        # Validate target folder exists
+        if target_foldername not in folders_obj.folders:
+            logging.warning(f"Target folder '{target_foldername}' not found in registry")
+            return jsonify({"error": f"Target folder '{target_foldername}' not found"}), 404
+        
+        # Prevent moving to the same folder
+        if foldername == target_foldername:
+            return jsonify({"error": "Cannot move imageset to the same folder"}), 400
+        
+        source_folder_path = folders_obj.folders[foldername]
+        target_folder_path = folders_obj.folders[target_foldername]
+        
+        # Create imageset object
+        imageset_obj = Imageset(config=config, folder_name=source_folder_path, imageset_name=imageset)
+        
+        # Move the imageset
+        new_imageset_path = imageset_obj.move_to_folder(target_folder_path)
+        
+        # Return success response
+        response_data = {
+            "message": "Imageset moved successfully",
+            "imageset": imageset,
+            "source_folder": foldername,
+            "target_folder": target_foldername,
+            "new_path": new_imageset_path
+        }
+        
+        logging.info(f"Successfully moved imageset '{imageset}' from '{foldername}' to '{target_foldername}'")
+        return jsonify(response_data), 200
+        
+    except FileNotFoundError as e:
+        logging.error(f"File not found during imageset move: {e}")
+        return jsonify({"error": str(e)}), 404
+    except FileExistsError as e:
+        logging.error(f"Target already exists during imageset move: {e}")
+        return jsonify({"error": str(e)}), 409
+    except PermissionError as e:
+        logging.error(f"Permission error during imageset move: {e}")
+        return jsonify({"error": f"Permission denied: {str(e)}"}), 403
+    except Exception as e:
+        logging.error(f"Error moving imageset {imageset} from {foldername} to {target_foldername}: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+
+def move_imagesets(foldername: str):
+    """Move multiple imagesets to a target folder (bulk operation)."""
+    try:
+        # Validate request method
+        if request.method != 'POST':
+            return jsonify({"error": "Method not allowed"}), 405
+        
+        # Get JSON data from request
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No JSON data provided"}), 400
+        
+        # Validate required field
+        if 'target_foldername' not in data:
+            return jsonify({"error": "Missing required field: target_foldername"}), 400
+        
+        target_foldername = data['target_foldername']
+        imagesets_list = data.get('imagesets', [])
+        filter_status = data.get('filter_status', None)
+        
+        # Get folder paths from Folders registry
+        folders_obj = Folders()
+        
+        # Validate source folder exists
+        if foldername not in folders_obj.folders:
+            logging.warning(f"Source folder '{foldername}' not found in registry")
+            return jsonify({"error": f"Source folder '{foldername}' not found"}), 404
+        
+        # Validate target folder exists
+        if target_foldername not in folders_obj.folders:
+            logging.warning(f"Target folder '{target_foldername}' not found in registry")
+            return jsonify({"error": f"Target folder '{target_foldername}' not found"}), 404
+        
+        # Prevent moving to the same folder
+        if foldername == target_foldername:
+            return jsonify({"error": "Cannot move imagesets to the same folder"}), 400
+        
+        source_folder_path = folders_obj.folders[foldername]
+        target_folder_path = folders_obj.folders[target_foldername]
+        
+        # Create folder object to get imagesets
+        folder_obj = ImagesetFolder(config=config, foldername=source_folder_path)
+        
+        # Determine which imagesets to move based on the mode
+        imagesets_to_move = []
+        
+        if imagesets_list:
+            # Mode 1: Specific list of imagesets provided
+            imagesets_to_move = imagesets_list
+            logging.info(f"Moving specific imagesets: {len(imagesets_to_move)}")
+        elif filter_status:
+            # Mode 2: Filter by status
+            for imageset_name, imageset_obj in folder_obj.imagesets.items():
+                if imageset_obj.status == filter_status:
+                    imagesets_to_move.append(imageset_name)
+            logging.info(f"Moving imagesets with status '{filter_status}': {len(imagesets_to_move)}")
+        else:
+            # Mode 3: Move all imagesets
+            imagesets_to_move = list(folder_obj.imagesets.keys())
+            logging.info(f"Moving all imagesets: {len(imagesets_to_move)}")
+        
+        if not imagesets_to_move:
+            return jsonify({"error": "No imagesets to move"}), 400
+        
+        # Track successes and failures
+        successful_moves = []
+        failed_moves = []
+        
+        # Process each imageset
+        for imageset_name in imagesets_to_move:
+            try:
+                # Check if imageset exists in source folder
+                if imageset_name not in folder_obj.imagesets:
+                    logging.warning(f"Imageset '{imageset_name}' not found in source folder")
+                    failed_moves.append({
+                        "imageset": imageset_name,
+                        "error": "Imageset not found in source folder"
+                    })
+                    continue
+                
+                # Get the imageset object
+                imageset_obj = folder_obj.imagesets[imageset_name]
+                
+                # Move the imageset
+                imageset_obj.move_to_folder(target_folder_path)
+                
+                successful_moves.append(imageset_name)
+                logging.info(f"Successfully moved imageset '{imageset_name}'")
+                
+            except FileExistsError as e:
+                logging.error(f"Target already exists for imageset '{imageset_name}': {e}")
+                failed_moves.append({
+                    "imageset": imageset_name,
+                    "error": f"Imageset already exists in target folder"
+                })
+            except Exception as e:
+                logging.error(f"Error moving imageset '{imageset_name}': {e}", exc_info=True)
+                failed_moves.append({
+                    "imageset": imageset_name,
+                    "error": str(e)
+                })
+        
+        # Prepare response
+        total_imagesets = len(imagesets_to_move)
+        successful_count = len(successful_moves)
+        failed_count = len(failed_moves)
+        
+        response_data = {
+            "message": "Bulk move operation completed",
+            "source_folder": foldername,
+            "target_folder": target_foldername,
+            "total_imagesets": total_imagesets,
+            "successful_count": successful_count,
+            "failed_count": failed_count,
+            "successful_moves": successful_moves,
+            "failed_moves": failed_moves
+        }
+        
+        # Return appropriate status code based on results
+        if failed_moves:
+            if successful_count == 0:
+                # All failed
+                logging.error(f"Bulk move failed for all imagesets from '{foldername}' to '{target_foldername}'")
+                return jsonify(response_data), 500
+            else:
+                # Partial success
+                logging.warning(f"Bulk move partially failed: {failed_count} failures out of {total_imagesets}")
+                return jsonify(response_data), 207  # Multi-Status
+        else:
+            # All successful
+            logging.info(f"Bulk move successful for all {total_imagesets} imagesets from '{foldername}' to '{target_foldername}'")
+            return jsonify(response_data), 200
+        
+    except FileNotFoundError as e:
+        logging.error(f"File not found during bulk move: {e}")
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        logging.error(f"Error in bulk move from {foldername} to target folder: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+
 def favicon():
     """Return a simple SVG favicon."""
     svg = '''<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
