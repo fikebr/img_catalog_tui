@@ -16,6 +16,7 @@ def register_routes(app):
     # Imageset
     app.add_url_rule('/imageset/<string:foldername>/<string:imageset_name>', endpoint='imageset', view_func=views_html.imageset)
     app.add_url_rule('/imageset/<string:foldername>/<string:imageset_name>/edit', endpoint='imageset_edit', view_func=views_html.imageset_edit)
+    app.add_url_rule('/imageset/<string:foldername>/<string:imageset_name>/move', endpoint='imageset_move_form', view_func=views_html.imageset_move_form)
     app.add_url_rule('/imageset/<string:foldername>/<string:imageset_name>/interview', endpoint='interview', view_func=views_html.interview)
     # app.add_url_rule('/imageset/<string:foldername>/<string:imageset_name/toml>', endpoint='imageset_toml', view_func=views_html.imageset_toml)
     
@@ -48,10 +49,12 @@ def register_routes(app):
     
     app.add_url_rule('/api/folder/<string:foldername>', endpoint='api_folder', view_func=views_api.folder)
     app.add_url_rule('/api/folder/<string:foldername>/batch_update', endpoint='api_batch_update', view_func=views_api.batch_update, methods=['POST'])
+    app.add_url_rule('/api/folder/<string:foldername>/move_imagesets', endpoint='api_move_imagesets', view_func=views_api.move_imagesets, methods=['POST'])
     
     
     app.add_url_rule('/api/imageset/<string:foldername>/<string:imageset>', endpoint='api_imageset', view_func=views_api.imageset, methods=['GET'])
     app.add_url_rule('/api/imageset/<string:foldername>/<string:imageset>/update', endpoint='api_imageset_update', view_func=views_api.imageset_update, methods=['POST'])
+    app.add_url_rule('/api/imageset/<string:foldername>/<string:imageset>/move', endpoint='api_imageset_move', view_func=views_api.imageset_move, methods=['POST'])
     
     app.add_url_rule('/api/folder/<string:foldername>/review/new', endpoint='api_review_new', view_func=views_api.review_new)
 

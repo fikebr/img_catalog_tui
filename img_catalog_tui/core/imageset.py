@@ -388,6 +388,63 @@ class Imageset():
         except Exception as e:
             logging.error(f"Error archiving imageset {self.imageset_name}: {e}", exc_info=True)
             raise
+
+    def move_to_folder(self, new_folder_path: str) -> str:
+        """Move the imageset to a different folder.
+        
+        Args:
+            new_folder_path: Full OS path to the target folder
+            
+        Returns:
+            str: Full OS path to the moved imageset
+            
+        Raises:
+            FileNotFoundError: If target folder doesn't exist
+            FileExistsError: If imageset already exists in target folder
+            PermissionError: If insufficient permissions to move
+        """
+        
+        try:
+            # Validate target folder exists
+            if not os.path.exists(new_folder_path):
+                error_msg = f"Target folder does not exist: {new_folder_path}"
+                logging.error(error_msg)
+                raise FileNotFoundError(error_msg)
+            
+            if not os.path.isdir(new_folder_path):
+                error_msg = f"Target path is not a directory: {new_folder_path}"
+                logging.error(error_msg)
+                raise NotADirectoryError(error_msg)
+            
+            # Get the new path for the imageset in the target folder
+            new_imageset_path = os.path.join(new_folder_path, self.imageset_name)
+            
+            # Check if target already exists
+            if os.path.exists(new_imageset_path):
+                error_msg = f"Imageset already exists in target folder: {new_imageset_path}"
+                logging.error(error_msg)
+                raise FileExistsError(error_msg)
+            
+            # Store old path for logging
+            old_imageset_path = self.imageset_folder
+            
+            # Move the imageset folder to the target folder
+            logging.info(f"Moving imageset from {old_imageset_path} to {new_imageset_path}")
+            os.rename(self.imageset_folder, new_imageset_path)
+            
+            # Update the imageset_folder path to reflect the new location
+            self.imageset_folder = new_imageset_path
+            # Update the folder_name to reflect the new parent folder
+            self.folder_name = new_folder_path
+            # Reinitialize toml with new location
+            self.toml = ImagesetToml(imageset_folder=self.imageset_folder)
+            
+            logging.info(f"Successfully moved imageset '{self.imageset_name}' to folder '{new_folder_path}'")
+            return new_imageset_path
+            
+        except Exception as e:
+            logging.error(f"Error moving imageset {self.imageset_name} to {new_folder_path}: {e}", exc_info=True)
+            raise
         
     def _ensure_archive_location(self) -> None:
         """Ensure archived imagesets live under the _archive folder."""
