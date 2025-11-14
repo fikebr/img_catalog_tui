@@ -228,9 +228,9 @@
             }
         }
         
-        // View folder - navigate to folder details page
+        // View folder - navigate to folder details page in new tab
         function viewFolder(folderName) {
-            window.location.href = `/folder/${encodeURIComponent(folderName)}`;
+            window.open(`/folder/${encodeURIComponent(folderName)}`, '_blank');
         }
         
         // Message display functions
