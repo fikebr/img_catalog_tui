@@ -249,7 +249,7 @@
     function addToCart(card,cart){
       const name=card.dataset.imagesetname;const title=card.querySelector('.title')?.textContent.trim();
       if(state[cart].includes(name))return;
-      state[cart].push(name);
+      state[cart].unshift(name);
       card.hidden=true;
       
       // Extract image path from the card's image element
@@ -257,7 +257,7 @@
       const imagePath = imageEl ? imageEl.src.split('/').pop() : null;
       
       const item=buildCartItem(name,title,cart,imagePath);
-      $("#"+cart+"Items").appendChild(item);
+      $("#"+cart+"Items").prepend(item);
       updateCounts();
       updateCartCount(cart);
     }
