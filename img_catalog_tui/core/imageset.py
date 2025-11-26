@@ -25,11 +25,10 @@ class Imageset():
         self._ensure_archive_location()
         self.files = self._get_imageset_files() # dict{filename: dict{fullpath, ext, tags}}
 
-        self.get_exif_data()
+        self.get_exif_data()  # This will sync if it modifies TOML
         _ = self.orig_image
         
-        # Sync newly created/discovered imageset to database
-        self._sync_to_db()
+        # No sync needed here - only sync when data is modified
         
 
     ### properties and setters
