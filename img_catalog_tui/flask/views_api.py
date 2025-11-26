@@ -87,7 +87,7 @@ def interview():
 def folders():
     """Return list of folders as JSON."""
     try:
-        folders_obj = Folders()
+        folders_obj = Folders(config=config)
         return jsonify(folders_obj.folders)
     except Exception as e:
         logging.error(f"Error getting folders: {e}", exc_info=True)
@@ -97,7 +97,7 @@ def folders():
 def folder(foldername: str):
     """Return folder information as JSON."""
     try:
-        folders_obj = Folders()
+        folders_obj = Folders(config=config)
         folder_path = folders_obj.folders[foldername]
         # create a folder object for the foldername
         folder_obj = ImagesetFolder(config=config, foldername=folder_path)
@@ -114,7 +114,7 @@ def folder(foldername: str):
     
 def review_new(foldername: str):
     try:
-        folders_obj = Folders()
+        folders_obj = Folders(config=config)
         folder_path = folders_obj.folders[foldername]
         # create a folder object for the foldername
         folder_obj = ImagesetFolder(config=config, foldername=folder_path)
@@ -134,7 +134,7 @@ def imageset(foldername: str, imageset: str):
     """Return imageset information as JSON."""
     try:
         # Get full folder path from registry
-        folders_obj = Folders()
+        folders_obj = Folders(config=config)
         if foldername not in folders_obj.folders:
             logging.warning(f"Folder '{foldername}' not found in registry")
             return jsonify({"error": f"Folder '{foldername}' not found"}), 404
@@ -162,7 +162,7 @@ def folders_add(folder_path: str):
             return jsonify({"error": "Method not allowed"}), 405
             
         # Add folder using Folders class
-        folders_obj = Folders()
+        folders_obj = Folders(config=config)
         success = folders_obj.add(folder_path)
         
         if success:
@@ -184,7 +184,7 @@ def folders_delete(foldername: str):
             return jsonify({"error": "Method not allowed"}), 405
             
         # Delete folder using Folders class
-        folders_obj = Folders()
+        folders_obj = Folders(config=config)
         success = folders_obj.delete(foldername)
         
         if success:
@@ -229,7 +229,7 @@ def batch_update(foldername: str):
             return jsonify({"error": "imagesets list cannot be empty"}), 400
         
         # Get folder path from Folders registry
-        folders_obj = Folders()
+        folders_obj = Folders(config=config)
         if foldername not in folders_obj.folders:
             logging.warning(f"Folder '{foldername}' not found in registry")
             return jsonify({"error": f"Folder '{foldername}' not found"}), 404
@@ -301,7 +301,7 @@ def imageset_update(foldername: str, imageset: str):
             return jsonify({"error": "No form data provided"}), 400
         
         # Validate foldername exists in Folders registry
-        folders_obj = Folders()
+        folders_obj = Folders(config=config)
         if foldername not in folders_obj.folders:
             logging.warning(f"Folder '{foldername}' not found in registry")
             return jsonify({"error": f"Folder '{foldername}' not found"}), 404
@@ -388,7 +388,7 @@ def create_thumbnail(foldername: str, imageset_name: str, filename: str):
             return jsonify({"error": "Method not allowed"}), 405
         
         # Get folder path from Folders registry
-        folders_obj = Folders()
+        folders_obj = Folders(config=config)
         if foldername not in folders_obj.folders:
             logging.warning(f"Folder '{foldername}' not found in registry")
             return jsonify({"error": f"Folder '{foldername}' not found"}), 404
@@ -454,7 +454,7 @@ def create_watermark(foldername: str, imageset_name: str, filename: str):
             return jsonify({"error": f"Watermark file not found: {watermark_file}"}), 500
         
         # Get folder path from Folders registry
-        folders_obj = Folders()
+        folders_obj = Folders(config=config)
         if foldername not in folders_obj.folders:
             logging.warning(f"Folder '{foldername}' not found in registry")
             return jsonify({"error": f"Folder '{foldername}' not found"}), 404
@@ -580,7 +580,7 @@ def imageset_move(foldername: str, imageset: str):
         target_foldername = data['target_foldername']
         
         # Get folder paths from Folders registry
-        folders_obj = Folders()
+        folders_obj = Folders(config=config)
         
         # Validate source folder exists
         if foldername not in folders_obj.folders:
@@ -652,7 +652,7 @@ def move_imagesets(foldername: str):
         filter_status = data.get('filter_status', None)
         
         # Get folder paths from Folders registry
-        folders_obj = Folders()
+        folders_obj = Folders(config=config)
         
         # Validate source folder exists
         if foldername not in folders_obj.folders:
@@ -780,4 +780,53 @@ def favicon():
         <circle cx="8" cy="8" r="3" fill="#ffffff"/>
     </svg>'''
     return svg, 200, {'Content-Type': 'image/svg+xml'}
+
+
+def search_imagesets():
+    """Search imagesets based on query criteria."""
+    try:
+        if request.method != 'POST':
+            return jsonify({"error": "Method not allowed"}), 405
+        
+        data = request.get_json() or {}
+        
+        # Build query from request data
+        query = {}
+        
+        if 'status' in data:
+            query['status'] = data['status']
+        
+        if 'good_for' in data:
+            query['good_for'] = data['good_for']
+        
+        if 'posted_to' in data:
+            posted_to = data['posted_to']
+            if isinstance(posted_to, dict) and 'operator' in posted_to:
+                query['posted_to'] = {
+                    'operator': posted_to.get('operator', '='),
+                    'value': posted_to.get('value', '')
+                }
+            else:
+                query['posted_to'] = posted_to
+        
+        if 'prompt_contains' in data:
+            query['prompt_contains'] = data['prompt_contains']
+        
+        if 'folder' in data:
+            query['folder'] = data['folder']
+        
+        # TODO: Implement search using database tables directly
+        # The search functionality needs to be reimplemented using ImagesetsTable
+        # For now, return empty results
+        logging.warning("Search functionality not yet implemented with new database structure")
+        
+        return jsonify({
+            'results': [],
+            'count': 0,
+            'message': 'Search functionality being updated for new database structure'
+        }), 200
+        
+    except Exception as e:
+        logging.error(f"Error searching imagesets: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
 

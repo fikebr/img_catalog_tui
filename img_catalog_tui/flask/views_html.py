@@ -171,7 +171,7 @@ def folder(foldername: str) -> str:
         logging.debug(f"folder endpoint: folder={foldername}")
         
         # Validate foldername exists in Folders registry
-        folders_obj = Folders()
+        folders_obj = Folders(config=config)
         if foldername not in folders_obj.folders:
             logging.warning(f"Folder '{foldername}' not found in registry")
             return render_template('folder.html', 
@@ -229,7 +229,7 @@ def serve_image(foldername: str, imageset_name: str, filename: str):
     """Serve files from their original filesystem locations."""
     try:
         # Get folder path from Folders registry
-        folders_obj = Folders()
+        folders_obj = Folders(config=config)
         if foldername not in folders_obj.folders:
             logging.warning(f"Folder '{foldername}' not found in registry")
             abort(404)
@@ -278,7 +278,7 @@ def batch_update_form(foldername: str) -> str:
         logging.debug(f"batch_update_form endpoint: folder={foldername}")
         
         # Validate foldername exists in Folders registry
-        folders_obj = Folders()
+        folders_obj = Folders(config=config)
         if foldername not in folders_obj.folders:
             logging.warning(f"Folder '{foldername}' not found in registry")
             return render_template('batch_update.html', 
@@ -486,7 +486,7 @@ def imageset_move_form(foldername: str, imageset_name: str) -> str:
                                  error="Failed to connect to API"), 500
         
         # Get available folders from Folders registry
-        folders_obj = Folders()
+        folders_obj = Folders(config=config)
         available_folders = folders_obj.folders
         
         return render_template('imageset_move.html',
@@ -507,7 +507,7 @@ def imagefile(foldername: str, imageset_name: str, filename: str) -> str:
         logging.debug(f"imagefile endpoint: folder={foldername}, imageset={imageset_name}, filename={filename}")
         
         # Get folder path from Folders registry
-        folders_obj = Folders()
+        folders_obj = Folders(config=config)
         if foldername not in folders_obj.folders:
             logging.warning(f"Folder '{foldername}' not found in registry")
             return render_template('imagefile.html',
@@ -594,7 +594,7 @@ def mockups(foldername: str, imageset_name: str, filename: str) -> str:
         logging.debug(f"mockups endpoint: folder={foldername}, imageset={imageset_name}, filename={filename}")
         
         # Get folder path from Folders registry
-        folders_obj = Folders()
+        folders_obj = Folders(config=config)
         if foldername not in folders_obj.folders:
             logging.warning(f"Folder '{foldername}' not found in registry")
             return render_template('mockups.html',

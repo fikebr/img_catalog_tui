@@ -20,6 +20,7 @@ class Imageset():
         self.imageset_name = imageset_name
         self.imageset_folder = self._get_imageset_folder()
         self.toml = ImagesetToml(imageset_folder=self.imageset_folder)
+        
         # If status is already archive but folder not under _archive, move it now
         self._ensure_archive_location()
         self.files = self._get_imageset_files() # dict{filename: dict{fullpath, ext, tags}}
@@ -325,13 +326,8 @@ class Imageset():
 
 
     def to_dict(self):
-        
         biz = self.toml.get(section="biz")
         
-        
-        
-            
-            
         data = {
             "imageset_name": self.imageset_name,
             "imageset_folder": self.imageset_folder,
@@ -484,19 +480,21 @@ class Imageset():
             raise
         
     def get_exif_data(self):
-        """get the exif data and set into self.toml"""
+        """get the exif data and set into TOML"""
         
-        toml = self.toml.get()
-        source = toml.get("source", None)
+        toml_data = self.toml.get()
+        source = toml_data.get("source", None) if isinstance(toml_data, dict) else None
+        
         logging.debug(f"source: {source}")
         
         needs_exif = False
         
-        if not source:
+        if not source or source == "unknown":
             needs_exif = True
-            
-        if source and source not in toml:
-            needs_exif = True
+        else:
+            toml_data = self.toml.get()
+            if source and source not in toml_data:
+                needs_exif = True
         
         if needs_exif:
             from img_catalog_tui.core.imageset_metadata import ImagesetMetaData

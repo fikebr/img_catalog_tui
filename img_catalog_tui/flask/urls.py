@@ -60,6 +60,8 @@ def register_routes(app):
 
     app.add_url_rule('/api/interview', endpoint='api_interview', view_func=views_api.interview, methods=['POST'])
     
+    app.add_url_rule('/api/search', endpoint='api_search', view_func=views_api.search_imagesets, methods=['POST'])
+    
     app.add_url_rule('/api/imagefile/<string:foldername>/<string:imageset_name>/<path:filename>/thumbnail', endpoint='api_create_thumbnail', view_func=views_api.create_thumbnail, methods=['POST'])
     app.add_url_rule('/api/imagefile/<string:foldername>/<string:imageset_name>/<path:filename>/watermark', endpoint='api_create_watermark', view_func=views_api.create_watermark, methods=['POST'])
 

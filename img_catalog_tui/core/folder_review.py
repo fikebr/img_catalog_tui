@@ -67,7 +67,7 @@ class FolderReview:
                 
                 # Optional: Check if this folder is registered (for consistency but not required)
                 try:
-                    folders = Folders()
+                    folders = Folders(config=self.config)
                     basename = folder_path.name
                     if basename in folders.folders:
                         registry_path = folders.folders[basename]
@@ -86,7 +86,7 @@ class FolderReview:
                 logging.debug(f"Basename provided: '{folder_name}'")
                 
                 # Initialize folders object to check registry
-                folders = Folders()
+                folders = Folders(config=self.config)
                 logging.debug(f"Folders registry loaded with {len(folders.folders)} entries")
                 
                 # Check if folder exists in the folders registry using basename

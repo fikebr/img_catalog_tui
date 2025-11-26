@@ -66,7 +66,7 @@ class ImagesetBatch:
         """Validate that folder exists in Folders object and on filesystem."""
         try:
             # Initialize Folders object to check registered folders
-            folders_obj = Folders()
+            folders_obj = Folders(config=self.config)
             
             # Check if folder exists in Folders object (search in values, not keys)
             if folder not in folders_obj.folders.values():

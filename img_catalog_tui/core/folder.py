@@ -190,6 +190,9 @@ if __name__ == "__main__":
     config = Config()
     setup_logging()
     
-    foldername = r"E:\\fooocus\\images\\new\\2025-08-03_tmp"
+    foldername = r"E:\fooocus\images\new\mj 2025-05-08"
+    imageset_name = "A_blonde_woman_with_a_black_hoodie_standing_on__3"
     
     folder = ImagesetFolder(config=config, foldername=foldername)
+    imageset = folder.imagesets[imageset_name]
+    logging.debug(f"===== {imageset_name} : {imageset.to_dict()} =====")
