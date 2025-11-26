@@ -8,6 +8,7 @@
 - Imageset metadata already lives in SQLite via `img_catalog_tui/db/*.py` with helpers such as `ImagesetsTable` for CRUD operations.
 - Flask HTML routes (`img_catalog_tui/flask/views_html.py`) and API routes (`views_api.py`) deliver other management pages; `base.html` defines global layout and CSS in `static/css/main.css`.
 - `img_catalog_tui/core/search.py` exists but is empty, giving us a natural place to centralize query orchestration.
+- The `Imageset` model exposes a `posted_to` property, but current SQLite schema (`imagesets` table) does not persist this field. The search initiative must capture and backfill `posted_to` so the column is available for filtering.
 
 ## Backend Work
 1. **Search query layer**
@@ -15,6 +16,7 @@
    - Support search types listed in the spec (prompt, status/good_for/posted_to, folder exact match, imageset name contains, status+needs). Each search type should map to parameterized SQL with indexes where necessary.
    - Normalize outputs to a single DTO (folder_name, imagesetname, etc.) so the UI can consume consistent columns regardless of search type.
    - Add defensive logging (file + screen) for query execution time, parameter validation failures, and empty result sets; surface user-friendly error messages while logging stack traces for debugging.
+   - Expand the `imagesets` table and `ImagesetsTable` CRUD helpers to include a `posted_to` column (schema migration, data backfill script, and property wiring inside `Imageset`). Without this change the search filters for `posted_to` cannot function.
 2. **Bulk actions & mutations**
    - Reuse existing batch update pathways (`ImagesetBatch` and `views_api.batch_update`) by exposing helper endpoints that accept a list of imageset identifiers from the search results.
    - For "move" and "perform review" operations, identify whether existing API endpoints already cover these actions; otherwise outline new helper endpoints.
