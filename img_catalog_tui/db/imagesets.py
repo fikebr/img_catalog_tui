@@ -227,7 +227,8 @@ class ImagesetsTable:
         cover_image_path: Optional[str] = None,
         orig_image_path: Optional[str] = None,
         folder_path: Optional[str] = None,
-        imageset_folder_path: Optional[str] = None
+        imageset_folder_path: Optional[str] = None,
+        folder_id: Optional[int] = None
     ) -> bool:
         """
         Update imageset record.
@@ -244,6 +245,7 @@ class ImagesetsTable:
             orig_image_path: Path to original image
             folder_path: Full path to parent folder
             imageset_folder_path: Full path to imageset folder
+            folder_id: Foreign key to folders table
             
         Returns:
             bool: True if successful, False otherwise
@@ -282,6 +284,9 @@ class ImagesetsTable:
             if imageset_folder_path is not None:
                 updates.append("imageset_folder_path = ?")
                 params.append(imageset_folder_path)
+            if folder_id is not None:
+                updates.append("folder_id = ?")
+                params.append(folder_id)
             
             if not updates:
                 return True

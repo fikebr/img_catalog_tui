@@ -463,10 +463,56 @@ class Imageset():
             
             # Store old path for logging
             old_imageset_path = self.imageset_folder
+            old_folder_path = self.folder_name
             
             # Move the imageset folder to the target folder
             logging.info(f"Moving imageset from {old_imageset_path} to {new_imageset_path}")
             os.rename(self.imageset_folder, new_imageset_path)
+            
+            # Update database record BEFORE updating in-memory paths
+            # This allows us to look up the existing record using the old paths
+            try:
+                from img_catalog_tui.db.imagesets import ImagesetsTable
+                from img_catalog_tui.db.folders import FoldersTable
+                
+                imagesets_table = ImagesetsTable(self.config)
+                folders_table = FoldersTable(self.config)
+                
+                # Look up existing record using OLD folder path
+                existing = imagesets_table.get_by_folder_path_and_name(old_folder_path, self.imageset_name)
+                
+                if existing:
+                    logging.debug(f"Found existing database record (ID: {existing['id']}) for imageset '{self.imageset_name}'")
+                    
+                    # Look up the new folder's folder_id
+                    new_folder_name = os.path.basename(new_folder_path)
+                    new_folder_record = folders_table.get_by_name(new_folder_name)
+                    if not new_folder_record:
+                        # Try to find by path
+                        new_folder_record = folders_table.get_by_path(new_folder_path)
+                    
+                    # Update the database record with new paths
+                    update_kwargs = {
+                        'folder_path': new_folder_path,
+                        'imageset_folder_path': new_imageset_path
+                    }
+                    
+                    # Update folder_id if we found the new folder in the registry
+                    if new_folder_record:
+                        update_kwargs['folder_id'] = new_folder_record['id']
+                        logging.debug(f"Updating folder_id to {new_folder_record['id']} for new folder '{new_folder_name}'")
+                    else:
+                        logging.warning(f"New folder '{new_folder_path}' not found in database, folder_id will not be updated")
+                    
+                    imagesets_table.update(existing['id'], **update_kwargs)
+                    logging.info(f"Updated database record for moved imageset '{self.imageset_name}'")
+                else:
+                    logging.warning(f"No existing database record found for imageset '{self.imageset_name}' in folder '{old_folder_path}'")
+                    
+            except ImportError:
+                logging.debug("Database module not available, skipping database update during move")
+            except Exception as e:
+                logging.warning(f"Failed to update database during move: {e}")
             
             # Update the imageset_folder path to reflect the new location
             self.imageset_folder = new_imageset_path
@@ -475,7 +521,7 @@ class Imageset():
             # Reinitialize toml with new location
             self.toml = ImagesetToml(imageset_folder=self.imageset_folder)
             
-            # Sync imageset location change to database
+            # Sync other imageset fields to database
             self._sync_to_db()
             
             logging.info(f"Successfully moved imageset '{self.imageset_name}' to folder '{new_folder_path}'")
