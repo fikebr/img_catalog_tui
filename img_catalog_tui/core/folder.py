@@ -177,12 +177,45 @@ class ImagesetFolder:
                     if move_folder(source_folder=folder_to_archive, target_folder=archive_folder):
                         logging.info(f"Archived abandoned folder: {imageset}")
                         
+                        # Sync the archived imageset location to database
+                        self._sync_archived_imageset_to_db(imageset, archive_folder)
                 
             return imagesets_remaining
             
         except Exception as e:
             logging.error(f"Error deleting abandoned folders in {self.foldername}: {e}", exc_info=True)
             return imagesets
+    
+    def _sync_archived_imageset_to_db(self, imageset_name: str, archive_folder: str) -> None:
+        """Sync an archived imageset's location to the database.
+        
+        This method attempts to sync archived imageset changes to the database.
+        Errors are logged but don't interrupt execution (graceful degradation).
+        
+        Args:
+            imageset_name: The imageset name
+            archive_folder: Full path to the archive folder
+        """
+        try:
+            from img_catalog_tui.db.sync import sync_imageset_toml_to_db
+            
+            imageset_id = sync_imageset_toml_to_db(
+                config=self.config,
+                folder_path=archive_folder,
+                imageset_name=imageset_name
+            )
+            
+            if imageset_id:
+                logging.debug(f"Synced archived imageset '{imageset_name}' to database (ID: {imageset_id})")
+            else:
+                logging.warning(f"Database sync returned no ID for archived imageset '{imageset_name}'")
+                
+        except ImportError:
+            # Database module not available, skip sync
+            logging.debug("Database sync skipped: db.sync module not available")
+        except Exception as e:
+            # Log error but continue - graceful degradation
+            logging.warning(f"Failed to sync archived imageset '{imageset_name}' to database: {e}")
 
 
 if __name__ == "__main__":

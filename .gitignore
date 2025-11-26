@@ -48,3 +48,9 @@ log.txt
 
 # Project specific
 _index/
+
+# SQLite databases
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3

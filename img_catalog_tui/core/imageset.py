@@ -28,6 +28,9 @@ class Imageset():
         self.get_exif_data()
         _ = self.orig_image
         
+        # Sync newly created/discovered imageset to database
+        self._sync_to_db()
+        
 
     ### properties and setters
     # cover_image
