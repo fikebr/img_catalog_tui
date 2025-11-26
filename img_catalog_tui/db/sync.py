@@ -5,13 +5,12 @@ Synchronization functions for TOML <-> Database migration and sync.
 import os
 import json
 import logging
-import tomllib
 from pathlib import Path
-from typing import Optional, Dict, List
+from typing import Optional
 
 from img_catalog_tui.config import Config
 from img_catalog_tui.core.imageset_toml import ImagesetToml
-from img_catalog_tui.db.utils import init_database, get_db_path
+from img_catalog_tui.db.utils import init_database
 from img_catalog_tui.db.folders import FoldersTable
 from img_catalog_tui.db.imagesets import ImagesetsTable
 from img_catalog_tui.db.imageset_sections import ImagesetSectionsTable
@@ -126,9 +125,9 @@ def sync_imageset_toml_to_db(config: Config, folder_path: str, imageset_name: st
             logging.warning(f"Imageset folder does not exist: {imageset_folder}")
             return None
         
-        # Load TOML data
-        toml_obj = ImagesetToml(imageset_folder=imageset_folder)
-        toml_data = toml_obj.get()
+        # Create Imageset object to access properties
+        from img_catalog_tui.core.imageset import Imageset
+        imageset = Imageset(config=config, folder_name=folder_path, imageset_name=imageset_name)
         
         # Get folder ID
         folders_table = FoldersTable(config)
@@ -148,26 +147,13 @@ def sync_imageset_toml_to_db(config: Config, folder_path: str, imageset_name: st
         imagesets_table = ImagesetsTable(config)
         existing = imagesets_table.get_by_folder_path_and_name(folder_path, imageset_name)
         
-        # Extract top-level fields
-        status = toml_data.get("status", "")
-        edits = toml_data.get("edits", "")
-        needs = toml_data.get("needs", "")
-        source = toml_data.get("source", "")
-        
-        # Get prompt from source section
-        prompt = ""
-        if source and source in toml_data:
-            source_section = toml_data[source]
-            if isinstance(source_section, dict):
-                prompt = source_section.get("prompt", "")
-        
-        # Get good_for and posted_to from biz section
-        good_for = ""
-        posted_to = ""
-        biz_section = toml_data.get("biz", {})
-        if isinstance(biz_section, dict):
-            good_for = biz_section.get("good_for", "")
-            posted_to = biz_section.get("posted_to", "")
+        # Use Imageset properties instead of manually parsing TOML
+        status = imageset.status
+        edits = imageset.edits
+        needs = imageset.needs
+        source = imageset.toml.get(key="source")
+        prompt = imageset.prompt
+        good_for = imageset.good_for
         
         # Calculate paths
         imageset_folder_path = os.path.join(folder_path, imageset_name)
@@ -207,6 +193,7 @@ def sync_imageset_toml_to_db(config: Config, folder_path: str, imageset_name: st
         
         # Sync all sections except top-level fields
         top_level_keys = {"imageset", "status", "edits", "needs", "source"}
+        toml_data = imageset.toml.get()
         
         for section_name, section_data in toml_data.items():
             if section_name in top_level_keys:
@@ -242,7 +229,6 @@ def sync_imageset_toml_to_db(config: Config, folder_path: str, imageset_name: st
         orig_image_path = None
         
         # Get image files
-        img_file_ext = config.config_data.get("img_file_ext", [])
         image_files = [f for f in files if f['file_type'] == 'image']
         
         if image_files:
