@@ -15,13 +15,7 @@
    - Support search types listed in the spec (prompt, status/good_for/posted_to, folder exact match, imageset name contains, status+needs). Each search type should map to parameterized SQL with indexes where necessary.
    - Normalize outputs to a single DTO (folder_name, imagesetname, etc.) so the UI can consume consistent columns regardless of search type.
    - Add defensive logging (file + screen) for query execution time, parameter validation failures, and empty result sets; surface user-friendly error messages while logging stack traces for debugging.
-
-2. **API surface**
-   - Add `/api/search` endpoint in `views_api.py` that accepts JSON payload describing `search_type`, `criteria`, pagination/sort options, and requested columns. This endpoint returns JSON for the results view.
-   - Enforce graceful error handling: validate inputs, wrap DB calls in try/except, return 4xx for validation issues and 5xx for unexpected failures.
-   - Consider optional streaming/pagination parameters to avoid dumping huge datasets at once (limit + offset in query builder).
-
-3. **Bulk actions & mutations**
+2. **Bulk actions & mutations**
    - Reuse existing batch update pathways (`ImagesetBatch` and `views_api.batch_update`) by exposing helper endpoints that accept a list of imageset identifiers from the search results.
    - For "move" and "perform review" operations, identify whether existing API endpoints already cover these actions; otherwise outline new helper endpoints.
 
@@ -32,10 +26,10 @@
    - Include quick presets or saved searches if helpful later (keep hooks in template for expansion).
 
 2. **Results page (`templates/search_results.html`)**
-   - Fetch data via `fetch('/api/search?...')` on load (criteria passed via query string or session storage) and render the table with the specified columns.
+   - Route submission posts criteria to a dedicated Flask view that invokes `SearchService`, stores criteria in session or signed token, and renders results server-side before sending HTML to the browser (still opened in a new tab).
    - Implement client-side table behavior (sorting, filtering, hide/unhide columns, multi-select checkboxes, responsive layout). A lightweight approach:
      - Use vanilla JS + CSS Grid/Flexbox for responsiveness.
-     - Manage sorting/filtering in JS memory for now; if dataset size grows, fall back to server-side parameters (already supported by API plan).
+     - Manage sorting/filtering in JS memory for now; if dataset size grows, round-trip through the same server-rendered route with updated parameters.
      - Provide column-visibility controls (checkbox list) that toggles `display: none` on column cells and persists preference per session.
    - Include a toolbar above the table for bulk actions and export triggers.
 
@@ -49,16 +43,16 @@
 - Bulk toolbar buttons:
   - **Move**: open modal to choose target folder, POST to a move endpoint (reuse folder utilities where possible).
   - **Perform review**: direct to existing review workflow with selected imagesets pre-populated; if existing review expects one imageset at a time, iterate through selections server-side or limit to single selection.
-  - **Export data**: allow CSV export by invoking `/api/search` with `format=csv` (server streams CSV) or by generating client-side CSV from the loaded data.
+  - **Export data**: allow CSV export by reusing the server-side search view with `format=csv` flag (stream CSV) or by generating client-side CSV from the rendered dataset.
 
 ## Logging & Error Handling
-- Ensure new service + endpoints use `img_catalog_tui/logger.py` configuration so logs hit both file and stdout per user rule.
+- Ensure new service + views use `img_catalog_tui/logger.py` configuration so logs hit both file and stdout per user rule.
 - Wrap DB/file interactions with try/except blocks that return actionable messages to the UI without exposing stack traces while logging full context.
-- For client-side errors, show inline error banners and log them via an optional `/api/client-log` if needed (future enhancement).
+- For client-side errors, show inline error banners and log them via an optional client-log view if needed (future enhancement).
 
 ## Testing & Validation
 - Unit tests for `SearchService` covering each query type, parameter validation, and edge cases (empty criteria, missing folders, etc.).
-- Integration tests (Flask test client) for `/api/search` ensuring correct status codes, JSON schema, and error flows.
+- Integration tests (Flask test client) for the new search form/results views, ensuring correct status codes, rendered context, and error flows.
 - Manual smoke test for UI: run Flask server, exercise search form, verify results page behavior (sorting/filtering/hiding columns, bulk actions, action buttons).
 - Regression check on existing folder/imageset pages to ensure navigation additions do not break layout.
 
