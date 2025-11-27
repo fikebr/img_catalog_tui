@@ -7,6 +7,8 @@ def register_routes(app):
 
     # routes to serve html
     app.add_url_rule('/', endpoint='index', view_func=views_html.index)
+    app.add_url_rule('/search', endpoint='search_page', view_func=views_html.search_page)
+    app.add_url_rule('/search/results', endpoint='search_results', view_func=views_html.search_results, methods=['GET', 'POST'])
 
     # Folder
     app.add_url_rule('/folders', endpoint='folders', view_func=views_html.folders)

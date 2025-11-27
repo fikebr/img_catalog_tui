@@ -154,6 +154,7 @@ def sync_imageset_toml_to_db(config: Config, folder_path: str, imageset_name: st
         source = imageset.toml.get(key="source")
         prompt = imageset.prompt
         good_for = imageset.good_for
+        posted_to = imageset.posted_to
         
         # Calculate paths
         imageset_folder_path = os.path.join(folder_path, imageset_name)
@@ -166,6 +167,7 @@ def sync_imageset_toml_to_db(config: Config, folder_path: str, imageset_name: st
                 edits=edits,
                 needs=needs,
                 good_for=good_for,
+                posted_to=posted_to,
                 source=source,
                 prompt=prompt
             )
@@ -181,6 +183,7 @@ def sync_imageset_toml_to_db(config: Config, folder_path: str, imageset_name: st
                 edits=edits,
                 needs=needs,
                 good_for=good_for,
+                posted_to=posted_to,
                 source=source,
                 prompt=prompt
             )
@@ -316,6 +319,10 @@ def sync_imageset_db_to_toml(config: Config, folder_path: str, imageset_name: st
             toml_obj.set(key="edits", value=imageset['edits'])
         if imageset['needs']:
             toml_obj.set(key="needs", value=imageset['needs'])
+        if imageset.get('good_for'):
+            toml_obj.set(key="good_for", value=imageset['good_for'])
+        if imageset.get('posted_to') is not None:
+            toml_obj.set(section="biz", key="posted_to", value=imageset['posted_to'] or "")
         if imageset['source']:
             toml_obj.set(key="source", value=imageset['source'])
         

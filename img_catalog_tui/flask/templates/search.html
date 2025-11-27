@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Search Catalog{% endblock %}
+{% block page_title %}Search Catalog{% endblock %}
+
+{% block content %}
+<div class="section">
+    <p class="muted-text">Each card below launches a dedicated search. Results open in a new tab so you can keep this launcher handy.</p>
+</div>
+
+<div class="search-grid">
+    <section class="search-card">
+        <h2>Prompt Contains</h2>
+        <p>Find imagesets where the stored prompt text includes the provided phrase.</p>
+        <form action="{{ url_for('search_results') }}" method="get" target="_blank">
+            <input type="hidden" name="search_type" value="prompt">
+            <div class="form-group">
+                <label for="prompt_text">Prompt contains</label>
+                <input id="prompt_text" name="prompt_text" type="text" placeholder="e.g. sunset over mountains" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Search Prompts</button>
+        </form>
+    </section>
+
+    <section class="search-card">
+        <h2>Status + Good For + Posted To</h2>
+        <p>Filter imagesets with an exact status, where good_for includes a tag and posted_to avoids another tag.</p>
+        <form action="{{ url_for('search_results') }}" method="get" target="_blank">
+            <input type="hidden" name="search_type" value="status_good_for_posted_to">
+            <div class="form-group">
+                <label for="status_filter">Status</label>
+                <select id="status_filter" name="status_filter" required>
+                    <option value="">Pick a status…</option>
+                    {% for value in config_options.status %}
+                    <option value="{{ value }}">{{ value|capitalize }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="good_for_filter">Good For contains</label>
+                <select id="good_for_filter" name="good_for_filter" required>
+                    <option value="">Pick a tag…</option>
+                    {% for value in config_options.good_for %}
+                    <option value="{{ value }}">{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="posted_to_exclude">Posted To does not contain</label>
+                <select id="posted_to_exclude" name="posted_to_exclude" required>
+                    <option value="">Pick a platform…</option>
+                    {% for value in config_options.posted_to %}
+                    <option value="{{ value }}">{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Search Status + Tags</button>
+        </form>
+    </section>
+
+    <section class="search-card">
+        <h2>Folder Lookup</h2>
+        <p>Pinpoint a folder by registered name or filesystem path.</p>
+        <form action="{{ url_for('search_results') }}" method="get" target="_blank">
+            <input type="hidden" name="search_type" value="folder">
+            <div class="form-group">
+                <label for="folder_value">Folder name or path</label>
+                <input id="folder_value" name="folder_value" type="text" placeholder="e.g. 2024-08-12_Projects" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Search Folder</button>
+        </form>
+    </section>
+
+    <section class="search-card">
+        <h2>Imageset Name Contains</h2>
+        <p>Fuzzy match across imageset names.</p>
+        <form action="{{ url_for('search_results') }}" method="get" target="_blank">
+            <input type="hidden" name="search_type" value="imageset_name">
+            <div class="form-group">
+                <label for="imageset_name_value">Name contains</label>
+                <input id="imageset_name_value" name="imageset_name_value" type="text" placeholder="e.g. glow" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Search Imageset Names</button>
+        </form>
+    </section>
+
+    <section class="search-card">
+        <h2>Status + Needs</h2>
+        <p>List a status and optionally a needs substring. Without a substring, the query returns every non-empty needs value for that status.</p>
+        <form action="{{ url_for('search_results') }}" method="get" target="_blank">
+            <input type="hidden" name="search_type" value="status_needs">
+            <div class="form-group">
+                <label for="needs_status">Status</label>
+                <select id="needs_status" name="needs_status" required>
+                    <option value="">Pick a status…</option>
+                    {% for value in config_options.status %}
+                    <option value="{{ value }}">{{ value|capitalize }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="needs_contains">Needs contains (optional)</label>
+                <select id="needs_contains" name="needs_contains">
+                    <option value="">Any needs value</option>
+                    {% for value in config_options.needs %}
+                    <option value="{{ value }}">{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Search Needs</button>
+        </form>
+    </section>
+</div>
+{% endblock %}
+

@@ -102,6 +102,7 @@ def _create_imagesets_table(cursor: sqlite3.Cursor) -> None:
             edits TEXT,
             needs TEXT,
             good_for TEXT,
+            posted_to TEXT,
             source TEXT,
             prompt TEXT,
             cover_image_path TEXT,
@@ -190,6 +191,7 @@ def _create_indexes(cursor: sqlite3.Cursor) -> None:
         "CREATE INDEX IF NOT EXISTS idx_imagesets_folder_id ON imagesets(folder_id)",
         "CREATE INDEX IF NOT EXISTS idx_imagesets_name ON imagesets(name)",
         "CREATE INDEX IF NOT EXISTS idx_imagesets_status ON imagesets(status)",
+        "CREATE INDEX IF NOT EXISTS idx_imagesets_posted_to ON imagesets(posted_to)",
         "CREATE INDEX IF NOT EXISTS idx_imagesets_source ON imagesets(source)",
         "CREATE INDEX IF NOT EXISTS idx_imagesets_folder_name ON imagesets(folder_id, name)",
         

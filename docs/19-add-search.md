@@ -2,6 +2,12 @@
 
 add the capability to add search tools to the application.
 
+## Extra Notes
+
+- do not deal with the API routes. they will be managed in a seperate phase.
+- add the posted_to field to the db
+- the searches only search the db. not the toml files of the fiesystem
+
 ## Pages (Search & Results)
 
 ### Search:
@@ -45,5 +51,15 @@ action buttons
 - open imageset
 - open edit pop-up
 - copy full imageset folder path
+
+## extra item: the posted_to field
+
+the posted_to property of the Imageset class is not managed in the db.
+
+1) add the property as a column to the imagesets db table.
+2) add posted_to to the db/imagesets.py logic
+3) create a one-time script to add the posted_to column and update all of the existing rows in the imagesets table with the posted_to data
+
+
 
 

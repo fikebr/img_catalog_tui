@@ -32,6 +32,7 @@ class ImagesetsTable:
         edits: Optional[str] = None,
         needs: Optional[str] = None,
         good_for: Optional[str] = None,
+        posted_to: Optional[str] = None,
         source: Optional[str] = None,
         prompt: Optional[str] = None,
         cover_image_path: Optional[str] = None,
@@ -49,6 +50,7 @@ class ImagesetsTable:
             edits: Comma-separated edits
             needs: Comma-separated needs
             good_for: Comma-separated good_for values
+            posted_to: Comma-separated posted_to values
             source: Image source
             prompt: Prompt text
             cover_image_path: Path to cover image
@@ -63,13 +65,13 @@ class ImagesetsTable:
                 cursor.execute("""
                     INSERT INTO imagesets (
                         folder_id, name, folder_path, imageset_folder_path,
-                        status, edits, needs, good_for, source, prompt,
+                        status, edits, needs, good_for, posted_to, source, prompt,
                         cover_image_path, orig_image_path, updated_at
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
                     folder_id, name, folder_path, imageset_folder_path,
-                    status, edits, needs, good_for, source, prompt,
+                    status, edits, needs, good_for, posted_to, source, prompt,
                     cover_image_path, orig_image_path, datetime.now().isoformat()
                 ))
                 imageset_id = cursor.lastrowid
@@ -222,6 +224,7 @@ class ImagesetsTable:
         edits: Optional[str] = None,
         needs: Optional[str] = None,
         good_for: Optional[str] = None,
+        posted_to: Optional[str] = None,
         source: Optional[str] = None,
         prompt: Optional[str] = None,
         cover_image_path: Optional[str] = None,
@@ -239,6 +242,7 @@ class ImagesetsTable:
             edits: Comma-separated edits
             needs: Comma-separated needs
             good_for: Comma-separated good_for values
+            posted_to: Comma-separated posted_to values
             source: Image source
             prompt: Prompt text
             cover_image_path: Path to cover image
@@ -266,6 +270,9 @@ class ImagesetsTable:
             if good_for is not None:
                 updates.append("good_for = ?")
                 params.append(good_for)
+            if posted_to is not None:
+                updates.append("posted_to = ?")
+                params.append(posted_to)
             if source is not None:
                 updates.append("source = ?")
                 params.append(source)

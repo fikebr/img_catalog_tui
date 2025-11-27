@@ -1,14 +1,156 @@
 import logging
 import os
 import requests
-from flask import jsonify, render_template, send_file, abort, request
+from flask import jsonify, render_template, send_file, abort, request, url_for
 
 from img_catalog_tui.config import Config
+from img_catalog_tui.core.search import SearchService
 
 from img_catalog_tui.core.folders import Folders
 from img_catalog_tui.core.folder import ImagesetFolder
 
 config = Config()
+
+
+def _get_search_form_options() -> dict:
+    """Return config-driven options for search forms."""
+    return {
+        "status": config.config_data.get("status", []),
+        "good_for": config.config_data.get("good_for", []),
+        "posted_to": config.config_data.get("posted_to", []),
+        "needs": config.config_data.get("needs", []),
+    }
+
+
+def _build_thumbnail_url(result: dict) -> str:
+    """Construct a relative thumbnail URL if we can safely map it to serve_image."""
+    cover_path = result.get("cover_image_path")
+    imageset_folder_path = result.get("imageset_folder_path")
+    foldername = result.get("folder_name")
+    imageset_name = result.get("imageset_name")
+
+    if not all([cover_path, imageset_folder_path, foldername, imageset_name]):
+        return ""
+
+    normalized_cover = cover_path.replace("\\", "/")
+    normalized_folder = imageset_folder_path.replace("\\", "/")
+
+    if not normalized_cover.startswith(normalized_folder):
+        return ""
+
+    relative = normalized_cover[len(normalized_folder):].lstrip("/\\")
+    if not relative:
+        return ""
+
+    return url_for('serve_image', foldername=foldername, imageset_name=imageset_name, filename=relative)
+
+
+def _augment_search_results(results: list[dict]) -> list[dict]:
+    """Attach template-ready helpers (links, URLs, etc.) to each result."""
+    enhanced: list[dict] = []
+    for row in results:
+        row_copy = row.copy()
+        foldername = row_copy.get("folder_name") or ""
+        imageset_name = row_copy.get("imageset_name") or ""
+        if foldername and imageset_name:
+            row_copy["imageset_url"] = url_for('imageset', foldername=foldername, imageset_name=imageset_name)
+            row_copy["edit_url"] = url_for('imageset_edit', foldername=foldername, imageset_name=imageset_name)
+            row_copy["move_url"] = url_for('imageset_move_form', foldername=foldername, imageset_name=imageset_name)
+            row_copy["review_url"] = url_for('reviews_list', foldername=foldername)
+        else:
+            row_copy["imageset_url"] = ""
+            row_copy["edit_url"] = ""
+            row_copy["move_url"] = ""
+            row_copy["review_url"] = ""
+
+        row_copy["thumbnail_url"] = _build_thumbnail_url(row_copy)
+        enhanced.append(row_copy)
+    return enhanced
+
+
+def search_page() -> str:
+    """Render the search landing page."""
+    try:
+        return render_template(
+            'search.html',
+            title="Search Catalog",
+            config_options=_get_search_form_options()
+        )
+    except Exception as e:
+        logging.error(f"Error rendering search page: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
+
+
+def search_results() -> str:
+    """Render the search results grid."""
+    try:
+        search_type = (request.values.get("search_type") or "").strip()
+        service = SearchService(config)
+        results: list[dict] = []
+        error_message: str | None = None
+        search_context: dict[str, str] = {}
+
+        def _record_context(label: str, value: str) -> None:
+            if value and value.strip():
+                search_context[label] = value
+
+        if search_type == "prompt":
+            prompt_text = request.values.get("prompt_text", "")
+            _record_context("Prompt contains", prompt_text)
+            if prompt_text.strip():
+                results = service.search_by_prompt(prompt_text)
+            else:
+                error_message = "Enter prompt text to run a prompt search."
+        elif search_type == "status_good_for_posted_to":
+            status_value = request.values.get("status_filter", "")
+            good_for_value = request.values.get("good_for_filter", "")
+            posted_exclude = request.values.get("posted_to_exclude", "")
+            _record_context("Status", status_value)
+            _record_context("Good for contains", good_for_value)
+            _record_context("Posted_to excludes", posted_exclude)
+            if status_value.strip() and good_for_value.strip() and posted_exclude.strip():
+                results = service.search_status_good_for_posted_to(status_value, good_for_value, posted_exclude)
+            else:
+                error_message = "Status, Good For, and Posted To filters are required for this search."
+        elif search_type == "folder":
+            folder_value = request.values.get("folder_value", "")
+            _record_context("Folder", folder_value)
+            if folder_value.strip():
+                results = service.search_by_folder(folder_value)
+            else:
+                error_message = "Provide a folder name or path."
+        elif search_type == "imageset_name":
+            name_value = request.values.get("imageset_name_value", "")
+            _record_context("Imageset contains", name_value)
+            if name_value.strip():
+                results = service.search_imageset_name(name_value)
+            else:
+                error_message = "Provide part of an imageset name."
+        elif search_type == "status_needs":
+            status_value = request.values.get("needs_status", "")
+            needs_value = request.values.get("needs_contains", "")
+            _record_context("Status", status_value)
+            _record_context("Needs contains", needs_value)
+            if status_value.strip():
+                results = service.search_status_and_needs(status_value, needs_value)
+            else:
+                error_message = "Status is required for the status/needs search."
+        else:
+            error_message = "Unknown search type. Please launch searches from the search page."
+
+        enhanced_results = _augment_search_results(results)
+        return render_template(
+            'search_results.html',
+            title="Search Results",
+            search_type=search_type,
+            search_context=search_context,
+            results=enhanced_results,
+            error_message=error_message,
+            result_count=len(enhanced_results)
+        )
+    except Exception as e:
+        logging.error(f"Error rendering search results: {e}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
 
 def index() -> str:
     try:
