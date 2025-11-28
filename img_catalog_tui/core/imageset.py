@@ -20,12 +20,15 @@ class Imageset():
         self.imageset_name = imageset_name
         self.imageset_folder = self._get_imageset_folder()
         self.toml = ImagesetToml(imageset_folder=self.imageset_folder)
+        
         # If status is already archive but folder not under _archive, move it now
         self._ensure_archive_location()
         self.files = self._get_imageset_files() # dict{filename: dict{fullpath, ext, tags}}
 
-        self.get_exif_data()
+        self.get_exif_data()  # This will sync if it modifies TOML
         _ = self.orig_image
+        
+        # No sync needed here - only sync when data is modified
         
 
     ### properties and setters
@@ -36,6 +39,33 @@ class Imageset():
     # needs
     
         
+    
+    def _sync_to_db(self) -> None:
+        """Sync the current imageset TOML data to the database.
+        
+        This method attempts to sync changes to the database after TOML modifications.
+        Errors are logged but don't interrupt execution (graceful degradation).
+        """
+        try:
+            from img_catalog_tui.db.sync import sync_imageset_toml_to_db
+            
+            imageset_id = sync_imageset_toml_to_db(
+                config=self.config,
+                folder_path=self.folder_name,
+                imageset_name=self.imageset_name
+            )
+            
+            if imageset_id:
+                logging.debug(f"Successfully synced imageset '{self.imageset_name}' to database (ID: {imageset_id})")
+            else:
+                logging.warning(f"Database sync returned no ID for imageset '{self.imageset_name}'")
+                
+        except ImportError:
+            # Database module not available, skip sync
+            logging.debug("Database sync skipped: db.sync module not available")
+        except Exception as e:
+            # Log error but continue - graceful degradation
+            logging.warning(f"Failed to sync imageset '{self.imageset_name}' to database: {e}")
     
     def _validate_comma_separated_values(self, value: str, valid_options: list[str], field_name: str) -> None:
         """Validate comma-separated values against config options."""
@@ -205,6 +235,7 @@ class Imageset():
             self.status = "edit"
         
         self.toml.set(key="edits", value=value)
+        self._sync_to_db()
 
     @property
     def status(self) -> str:
@@ -221,6 +252,7 @@ class Imageset():
             raise ValueError(error_msg)
         
         self.toml.set(key="status", value=value)
+        self._sync_to_db()
         
         if value == "archive":
             self.archive_imageset()
@@ -237,6 +269,7 @@ class Imageset():
         self._validate_comma_separated_values(value, valid_needs, "needs")
         
         self.toml.set(key="needs", value=value)
+        self._sync_to_db()
         
     @property
     def good_for(self) -> str:
@@ -250,6 +283,7 @@ class Imageset():
         self._validate_comma_separated_values(value, valid_good_for, "good_for")
         
         self.toml.set(key="good_for", value=value)
+        self._sync_to_db()
         
     
     @property
@@ -264,6 +298,7 @@ class Imageset():
         self._validate_comma_separated_values(value, valid_posted_to, "posted_to")
         
         self.toml.set(section="biz", key="posted_to", value=value)
+        self._sync_to_db()
         
 
 
@@ -317,6 +352,9 @@ class Imageset():
             # Update the files dict to reflect the change
             self.files = self._get_imageset_files()
             
+            # Sync file changes to database
+            self._sync_to_db()
+            
             return new_filename
             
         except Exception as e:
@@ -325,13 +363,8 @@ class Imageset():
 
 
     def to_dict(self):
-        
         biz = self.toml.get(section="biz")
         
-        
-        
-            
-            
         data = {
             "imageset_name": self.imageset_name,
             "imageset_folder": self.imageset_folder,
@@ -382,6 +415,9 @@ class Imageset():
             # Reinitialize toml with new location
             self.toml = ImagesetToml(imageset_folder=self.imageset_folder)
             
+            # Sync imageset location change to database
+            self._sync_to_db()
+            
             logging.info(f"Successfully archived imageset: {self.imageset_name}")
             return new_imageset_path
             
@@ -427,10 +463,56 @@ class Imageset():
             
             # Store old path for logging
             old_imageset_path = self.imageset_folder
+            old_folder_path = self.folder_name
             
             # Move the imageset folder to the target folder
             logging.info(f"Moving imageset from {old_imageset_path} to {new_imageset_path}")
             os.rename(self.imageset_folder, new_imageset_path)
+            
+            # Update database record BEFORE updating in-memory paths
+            # This allows us to look up the existing record using the old paths
+            try:
+                from img_catalog_tui.db.imagesets import ImagesetsTable
+                from img_catalog_tui.db.folders import FoldersTable
+                
+                imagesets_table = ImagesetsTable(self.config)
+                folders_table = FoldersTable(self.config)
+                
+                # Look up existing record using OLD folder path
+                existing = imagesets_table.get_by_folder_path_and_name(old_folder_path, self.imageset_name)
+                
+                if existing:
+                    logging.debug(f"Found existing database record (ID: {existing['id']}) for imageset '{self.imageset_name}'")
+                    
+                    # Look up the new folder's folder_id
+                    new_folder_name = os.path.basename(new_folder_path)
+                    new_folder_record = folders_table.get_by_name(new_folder_name)
+                    if not new_folder_record:
+                        # Try to find by path
+                        new_folder_record = folders_table.get_by_path(new_folder_path)
+                    
+                    # Update the database record with new paths
+                    update_kwargs = {
+                        'folder_path': new_folder_path,
+                        'imageset_folder_path': new_imageset_path
+                    }
+                    
+                    # Update folder_id if we found the new folder in the registry
+                    if new_folder_record:
+                        update_kwargs['folder_id'] = new_folder_record['id']
+                        logging.debug(f"Updating folder_id to {new_folder_record['id']} for new folder '{new_folder_name}'")
+                    else:
+                        logging.warning(f"New folder '{new_folder_path}' not found in database, folder_id will not be updated")
+                    
+                    imagesets_table.update(existing['id'], **update_kwargs)
+                    logging.info(f"Updated database record for moved imageset '{self.imageset_name}'")
+                else:
+                    logging.warning(f"No existing database record found for imageset '{self.imageset_name}' in folder '{old_folder_path}'")
+                    
+            except ImportError:
+                logging.debug("Database module not available, skipping database update during move")
+            except Exception as e:
+                logging.warning(f"Failed to update database during move: {e}")
             
             # Update the imageset_folder path to reflect the new location
             self.imageset_folder = new_imageset_path
@@ -438,6 +520,9 @@ class Imageset():
             self.folder_name = new_folder_path
             # Reinitialize toml with new location
             self.toml = ImagesetToml(imageset_folder=self.imageset_folder)
+            
+            # Sync other imageset fields to database
+            self._sync_to_db()
             
             logging.info(f"Successfully moved imageset '{self.imageset_name}' to folder '{new_folder_path}'")
             return new_imageset_path
@@ -479,24 +564,29 @@ class Imageset():
             self.imageset_folder = target_path
             # Reinitialize toml to point at new folder
             self.toml = ImagesetToml(imageset_folder=self.imageset_folder)
+            
+            # Sync location change to database
+            self._sync_to_db()
         except Exception as e:
             logging.error(f"Error ensuring archive location for {self.imageset_name}: {e}", exc_info=True)
             raise
         
     def get_exif_data(self):
-        """get the exif data and set into self.toml"""
+        """get the exif data and set into TOML"""
         
-        toml = self.toml.get()
-        source = toml.get("source", None)
+        toml_data = self.toml.get()
+        source = toml_data.get("source", None) if isinstance(toml_data, dict) else None
+        
         logging.debug(f"source: {source}")
         
         needs_exif = False
         
-        if not source:
+        if not source or source == "unknown":
             needs_exif = True
-            
-        if source and source not in toml:
-            needs_exif = True
+        else:
+            toml_data = self.toml.get()
+            if source and source not in toml_data:
+                needs_exif = True
         
         if needs_exif:
             from img_catalog_tui.core.imageset_metadata import ImagesetMetaData
@@ -521,6 +611,9 @@ class Imageset():
                 # No specific source detected, store as other data
                 self.toml.set(key="source", value="other")
                 self.toml.set(section="other", value=metadata.data)
+            
+            # Sync changes to database
+            self._sync_to_db()
             
     def _get_imageset_folder(self):
         if not os.path.exists(self.folder_name):
@@ -648,6 +741,10 @@ class Imageset():
             interview.interview_image()
             
             logging.info(f"Interview process completed for imageset: {self.imageset_name}")
+            
+            # Sync interview files to database
+            self._sync_to_db()
+            
             return interview.interview_parsed
             
         except Exception as e:

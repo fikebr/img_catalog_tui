@@ -41,6 +41,12 @@ templates_dir = "config/templates"
 menu_config = "config/menu.toml"
 watermark_file = "C:/Users/bradf/Downloads/Jackrabbit Watermark.png"
 
+# Storage backend configuration
+[storage]
+
+# SQLite database path (only used if backend is "sqlite" or "dual")
+db_path = "img_catalog_tui/db/catalog.db"
+
 # Review presets - predefined combinations of states, review_type, and options
 [review_presets]
 

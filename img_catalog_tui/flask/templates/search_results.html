@@ -1,0 +1,405 @@
+{% extends "base.html" %}
+
+{% block title %}Search Results{% endblock %}
+{% block page_title %}Search Results{% endblock %}
+
+{% block content %}
+<div class="section">
+    <div class="results-summary">
+        <div>
+            <h2>{{ result_count }} result{{ '' if result_count == 1 else 's' }}</h2>
+            {% if search_context %}
+            <ul class="search-context">
+                {% for label, value in search_context.items() %}
+                <li><strong>{{ label }}:</strong> {{ value }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+        <div class="results-summary-actions">
+            <a class="btn btn-secondary" href="{{ url_for('search_page') }}">Back to Search</a>
+        </div>
+    </div>
+    {% if error_message %}
+    <div class="alert alert-warning">{{ error_message }}</div>
+    {% endif %}
+</div>
+
+{% if results %}
+<div class="results-toolbar">
+    <div class="bulk-actions">
+        <button type="button" class="btn btn-primary" id="bulk-move">Move Selected</button>
+        <button type="button" class="btn btn-primary" id="bulk-review">Review Selected</button>
+        <button type="button" class="btn btn-secondary" id="bulk-export">Export CSV</button>
+    </div>
+    <div class="column-visibility">
+        <label><input type="checkbox" class="column-toggle" data-column="folder_name" checked> Folder</label>
+        <label><input type="checkbox" class="column-toggle" data-column="imageset_name" checked> Imageset</label>
+        <label><input type="checkbox" class="column-toggle" data-column="status" checked> Status</label>
+        <label><input type="checkbox" class="column-toggle" data-column="edits" checked> Edits</label>
+        <label><input type="checkbox" class="column-toggle" data-column="good_for" checked> Good For</label>
+        <label><input type="checkbox" class="column-toggle" data-column="needs" checked> Needs</label>
+        <label><input type="checkbox" class="column-toggle" data-column="posted_to" checked> Posted To</label>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table id="results-table" class="results-table">
+        <thead>
+            <tr>
+                <th data-column="select"><input type="checkbox" id="select-all" aria-label="Select all rows"></th>
+                <th data-column="folder_name">
+                    <button type="button" class="sort-button" data-sort-key="folderName">Folder</button>
+                </th>
+                <th data-column="imageset_name">
+                    <button type="button" class="sort-button" data-sort-key="imagesetName">Imageset</button>
+                </th>
+                <th data-column="status">
+                    <button type="button" class="sort-button" data-sort-key="status">Status</button>
+                </th>
+                <th data-column="edits">
+                    <button type="button" class="sort-button" data-sort-key="edits">Edits</button>
+                </th>
+                <th data-column="good_for">
+                    <button type="button" class="sort-button" data-sort-key="goodFor">Good For</button>
+                </th>
+                <th data-column="needs">
+                    <button type="button" class="sort-button" data-sort-key="needs">Needs</button>
+                </th>
+                <th data-column="posted_to">
+                    <button type="button" class="sort-button" data-sort-key="postedTo">Posted To</button>
+                </th>
+                <th data-column="thumbnail">Thumbnail</th>
+                <th data-column="actions">Actions</th>
+            </tr>
+            <tr class="filter-row">
+                <th></th>
+                <th><input type="text" class="column-filter" data-filter-key="folderName" placeholder="Filter folder"></th>
+                <th><input type="text" class="column-filter" data-filter-key="imagesetName" placeholder="Filter imageset"></th>
+                <th><input type="text" class="column-filter" data-filter-key="status" placeholder="Filter status"></th>
+                <th><input type="text" class="column-filter" data-filter-key="edits" placeholder="Filter edits"></th>
+                <th><input type="text" class="column-filter" data-filter-key="goodFor" placeholder="Filter good_for"></th>
+                <th><input type="text" class="column-filter" data-filter-key="needs" placeholder="Filter needs"></th>
+                <th><input type="text" class="column-filter" data-filter-key="postedTo" placeholder="Filter posted_to"></th>
+                <th></th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for result in results %}
+            <tr class="result-row"
+                data-id="{{ result.id }}"
+                data-folder-name="{{ result.folder_name }}"
+                data-imageset-name="{{ result.imageset_name }}"
+                data-status="{{ result.status }}"
+                data-edits="{{ result.edits }}"
+                data-good-for="{{ result.good_for }}"
+                data-needs="{{ result.needs }}"
+                data-posted-to="{{ result.posted_to }}"
+                data-folder-path="{{ result.folder_path }}"
+                data-imageset-folder-path="{{ result.imageset_folder_path }}"
+                data-move-url="{{ result.move_url }}"
+                data-edit-url="{{ result.edit_url }}"
+                data-imageset-url="{{ result.imageset_url }}"
+                data-review-url="{{ result.review_url }}">
+                <td data-column="select">
+                    <input type="checkbox" class="row-select" aria-label="Select {{ result.imageset_name }}">
+                </td>
+                <td data-column="folder_name">{{ result.folder_name or '—' }}</td>
+                <td data-column="imageset_name">{{ result.imageset_name or '—' }}</td>
+                <td data-column="status">{{ result.status or '—' }}</td>
+                <td data-column="edits">{{ result.edits or '—' }}</td>
+                <td data-column="good_for">{{ result.good_for or '—' }}</td>
+                <td data-column="needs">{{ result.needs or '—' }}</td>
+                <td data-column="posted_to">{{ result.posted_to or '—' }}</td>
+                <td data-column="thumbnail">
+                    {% if result.thumbnail_url %}
+                        <img src="{{ result.thumbnail_url }}" alt="thumbnail" class="thumbnail-img">
+                    {% elif result.cover_image_path %}
+                        <small>{{ result.cover_image_path }}</small>
+                    {% else %}
+                        <span class="muted-text">No thumbnail</span>
+                    {% endif %}
+                </td>
+                <td data-column="actions" class="actions-cell">
+                    {% if result.imageset_url %}
+                    <a class="btn btn-secondary btn-compact" href="{{ result.imageset_url }}" target="_blank" rel="noopener">Open</a>
+                    {% endif %}
+                    {% if result.edit_url %}
+                    <button type="button" class="btn btn-secondary btn-compact" data-action="open-edit" data-edit-url="{{ result.edit_url }}">Edit</button>
+                    {% endif %}
+                    {% if result.move_url %}
+                    <a class="btn btn-secondary btn-compact" href="{{ result.move_url }}" target="_blank" rel="noopener">Move</a>
+                    {% endif %}
+                    <button type="button" class="btn btn-secondary btn-compact" data-action="copy-path" data-copy="{{ result.imageset_folder_path }}">Copy Path</button>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div id="bulk-panel" class="bulk-panel" hidden>
+    <div class="bulk-panel-header">
+        <h3 id="bulk-panel-title">Bulk Action</h3>
+        <button type="button" class="btn btn-secondary" id="close-bulk-panel">Close</button>
+    </div>
+    <div id="bulk-panel-body"></div>
+</div>
+{% else %}
+<div class="section">
+    <p>No results to display. Adjust your filters and try again.</p>
+    <a class="btn btn-secondary" href="{{ url_for('search_page') }}">Back to Search</a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const table = document.getElementById('results-table');
+    if (!table) {
+        return;
+    }
+
+    const sortState = {};
+    const selectAll = document.getElementById('select-all');
+    const rowCheckboxes = table.querySelectorAll('.row-select');
+    const bulkPanel = document.getElementById('bulk-panel');
+    const bulkPanelTitle = document.getElementById('bulk-panel-title');
+    const bulkPanelBody = document.getElementById('bulk-panel-body');
+    const closeBulkPanelButton = document.getElementById('close-bulk-panel');
+
+    const sortButtons = table.querySelectorAll('.sort-button');
+    sortButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            const key = button.dataset.sortKey;
+            if (key) {
+                handleSort(key);
+            }
+        });
+    });
+
+    selectAll?.addEventListener('change', () => {
+        const visibleRows = Array.from(table.querySelectorAll('tbody tr')).filter(row => row.style.display !== 'none');
+        visibleRows.forEach((row) => {
+            const checkbox = row.querySelector('.row-select');
+            if (checkbox) {
+                checkbox.checked = selectAll.checked;
+            }
+        });
+    });
+
+    closeBulkPanelButton?.addEventListener('click', () => hideBulkPanel());
+
+    document.getElementById('bulk-move')?.addEventListener('click', () => handleBulkMove());
+    document.getElementById('bulk-review')?.addEventListener('click', () => handleBulkReview());
+    document.getElementById('bulk-export')?.addEventListener('click', () => handleBulkExport());
+
+    document.querySelectorAll('.column-filter').forEach((input) => {
+        input.addEventListener('input', applyFilters);
+    });
+
+    document.querySelectorAll('.column-toggle').forEach((checkbox) => {
+        checkbox.addEventListener('change', (event) => {
+            const target = event.target;
+            const column = target.dataset.column;
+            if (column) {
+                toggleColumnVisibility(column, target.checked);
+            }
+        });
+    });
+
+    document.querySelectorAll('[data-action="copy-path"]').forEach((button) => {
+        button.addEventListener('click', (event) => {
+            const target = event.currentTarget;
+            const value = target.dataset.copy || '';
+            copyToClipboard(value, target);
+        });
+    });
+
+    document.querySelectorAll('[data-action="open-edit"]').forEach((button) => {
+        button.addEventListener('click', (event) => {
+            const target = event.currentTarget;
+            const editUrl = target.dataset.editUrl;
+            if (editUrl) {
+                window.open(editUrl, 'imageset-edit', 'width=1000,height=800');
+            }
+        });
+    });
+
+    function handleSort(key) {
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        const direction = sortState[key] === 'asc' ? 'desc' : 'asc';
+        sortState[key] = direction;
+
+        rows.sort((a, b) => {
+            const aVal = (a.dataset[key] || '').toLowerCase();
+            const bVal = (b.dataset[key] || '').toLowerCase();
+            if (aVal < bVal) return direction === 'asc' ? -1 : 1;
+            if (aVal > bVal) return direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        rows.forEach((row) => tbody.appendChild(row));
+    }
+
+    function applyFilters() {
+        const filters = Array.from(document.querySelectorAll('.column-filter'));
+        const rows = table.querySelectorAll('tbody tr');
+
+        rows.forEach((row) => {
+            const matches = filters.every((filter) => {
+                const key = filter.dataset.filterKey;
+                if (!key) {
+                    return true;
+                }
+                const value = (filter.value || '').toLowerCase();
+                if (!value) {
+                    return true;
+                }
+                const cellValue = (row.dataset[key] || '').toLowerCase();
+                return cellValue.includes(value);
+            });
+            row.style.display = matches ? '' : 'none';
+        });
+    }
+
+    function toggleColumnVisibility(column, visible) {
+        const cells = table.querySelectorAll(`[data-column="${column}"]`);
+        cells.forEach((cell) => {
+            cell.classList.toggle('hidden-column', !visible);
+        });
+    }
+
+    function copyToClipboard(value, trigger) {
+        if (!value) {
+            return;
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(value).then(() => {
+                trigger.classList.add('success');
+                setTimeout(() => trigger.classList.remove('success'), 1200);
+            }).catch(() => fallbackCopy(value));
+        } else {
+            fallbackCopy(value);
+        }
+    }
+
+    function fallbackCopy(value) {
+        const textarea = document.createElement('textarea');
+        textarea.value = value;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+    }
+
+    function getSelectedRows() {
+        const rows = Array.from(table.querySelectorAll('tbody tr'));
+        return rows.filter((row) => {
+            const checkbox = row.querySelector('.row-select');
+            return row.style.display !== 'none' && checkbox && checkbox.checked;
+        });
+    }
+
+    function handleBulkMove() {
+        const selectedRows = getSelectedRows();
+        if (!selectedRows.length) {
+            alert('Select at least one imageset to move.');
+            return;
+        }
+        const items = selectedRows.map((row) => {
+            const moveUrl = row.dataset.moveUrl || '';
+            const label = `${row.dataset.folderName || 'Unknown folder'} / ${row.dataset.imagesetName || 'Unknown imageset'}`;
+            if (moveUrl) {
+                return `<li><a href="${moveUrl}" target="_blank" rel="noopener">${label}</a></li>`;
+            }
+            return `<li>${label} <em>(move form unavailable)</em></li>`;
+        }).join('');
+        showBulkPanel('Move Selected', `<p>Select each link below to launch the existing move workflow in a new tab.</p><ul>${items}</ul>`);
+    }
+
+    function handleBulkReview() {
+        const selectedRows = getSelectedRows();
+        if (!selectedRows.length) {
+            alert('Select at least one imageset to review.');
+            return;
+        }
+        const folders = new Map();
+        selectedRows.forEach((row) => {
+            const folderName = row.dataset.folderName || '';
+            if (!folderName || folders.has(folderName)) {
+                return;
+            }
+            folders.set(folderName, row.dataset.reviewUrl || '');
+        });
+        const items = Array.from(folders.entries()).map(([folderName, reviewUrl]) => {
+            if (reviewUrl) {
+                return `<li><a href="${reviewUrl}" target="_blank" rel="noopener">Review folder ${folderName}</a></li>`;
+            }
+            return `<li>${folderName} <em>(review link unavailable)</em></li>`;
+        }).join('');
+        showBulkPanel('Review Selected', `<p>These links open the existing folder review UI.</p><ul>${items}</ul>`);
+    }
+
+    function handleBulkExport() {
+        const selectedRows = getSelectedRows();
+        const rowsToExport = selectedRows.length ? selectedRows : Array.from(table.querySelectorAll('tbody tr')).filter(row => row.style.display !== 'none');
+        if (!rowsToExport.length) {
+            alert('No rows available to export.');
+            return;
+        }
+        const headers = ['Folder', 'Imageset', 'Status', 'Edits', 'Good For', 'Needs', 'Posted To', 'Folder Path', 'Imageset Path'];
+        const csvLines = [headers.join(',')];
+        rowsToExport.forEach((row) => {
+            const line = [
+                row.dataset.folderName || '',
+                row.dataset.imagesetName || '',
+                row.dataset.status || '',
+                row.dataset.edits || '',
+                row.dataset.goodFor || '',
+                row.dataset.needs || '',
+                row.dataset.postedTo || '',
+                row.dataset.folderPath || '',
+                row.dataset.imagesetFolderPath || ''
+            ].map(csvEscape).join(',');
+            csvLines.push(line);
+        });
+        const blob = new Blob([csvLines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `search-results-${Date.now()}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+
+    function csvEscape(value) {
+        const safeValue = value.replace(/"/g, '""');
+        return `"${safeValue}"`;
+    }
+
+    function showBulkPanel(title, bodyHtml) {
+        if (!bulkPanel) {
+            alert('Bulk panel unavailable.');
+            return;
+        }
+        bulkPanelTitle.textContent = title;
+        bulkPanelBody.innerHTML = bodyHtml;
+        bulkPanel.hidden = false;
+    }
+
+    function hideBulkPanel() {
+        if (bulkPanel) {
+            bulkPanel.hidden = true;
+            bulkPanelBody.innerHTML = '';
+        }
+    }
+});
+</script>
+{% endblock %}
+

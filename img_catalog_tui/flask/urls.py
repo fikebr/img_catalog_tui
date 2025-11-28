@@ -7,6 +7,8 @@ def register_routes(app):
 
     # routes to serve html
     app.add_url_rule('/', endpoint='index', view_func=views_html.index)
+    app.add_url_rule('/search', endpoint='search_page', view_func=views_html.search_page)
+    app.add_url_rule('/search/results', endpoint='search_results', view_func=views_html.search_results, methods=['GET', 'POST'])
 
     # Folder
     app.add_url_rule('/folders', endpoint='folders', view_func=views_html.folders)
@@ -59,6 +61,8 @@ def register_routes(app):
     app.add_url_rule('/api/folder/<string:foldername>/review/new', endpoint='api_review_new', view_func=views_api.review_new)
 
     app.add_url_rule('/api/interview', endpoint='api_interview', view_func=views_api.interview, methods=['POST'])
+    
+    app.add_url_rule('/api/search', endpoint='api_search', view_func=views_api.search_imagesets, methods=['POST'])
     
     app.add_url_rule('/api/imagefile/<string:foldername>/<string:imageset_name>/<path:filename>/thumbnail', endpoint='api_create_thumbnail', view_func=views_api.create_thumbnail, methods=['POST'])
     app.add_url_rule('/api/imagefile/<string:foldername>/<string:imageset_name>/<path:filename>/watermark', endpoint='api_create_watermark', view_func=views_api.create_watermark, methods=['POST'])
