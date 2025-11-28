@@ -1,7 +1,5 @@
 """Database-backed search helpers for imagesets."""
 
-from __future__ import annotations
-
 import logging
 import os
 
