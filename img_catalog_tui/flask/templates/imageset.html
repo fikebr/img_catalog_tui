@@ -133,7 +133,7 @@
                     {% set ns.img_count = ns.img_count + 1 %}
                 {% endif %}
             {% endfor %}
-            {% if ns.img_count > 1 %}
+            {% if ns.img_count >= 1 %}
             <div class="section" style="margin-top: var(--space-lg);">
                 <h2 class="section-title">🖼️ Image Cards</h2>
                 <div class="files-grid" style="display: grid; gap: var(--space-sm); margin-top: var(--space-md); grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); align-items: start;">
