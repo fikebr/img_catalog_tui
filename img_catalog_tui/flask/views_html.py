@@ -524,6 +524,23 @@ def imageset(foldername: str, imageset_name: str) -> str:
         return jsonify({"error": "Internal server error"}), 500
 
 
+def _csv_to_list(value: str | None) -> list[str]:
+    """Convert a comma-separated string into a list of trimmed values."""
+    if not value or not isinstance(value, str):
+        return []
+    return [item.strip() for item in value.split(',') if item.strip()]
+
+
+def _empty_selection_map() -> dict[str, list[str]]:
+    """Return an empty selection map for checkbox fields."""
+    return {
+        'edits': [],
+        'needs': [],
+        'good_for': [],
+        'posted_to': []
+    }
+
+
 def imageset_edit(foldername: str, imageset_name: str) -> str:
     """Return the imageset edit HTML page for editing imageset metadata."""
     try:
@@ -542,6 +559,7 @@ def imageset_edit(foldername: str, imageset_name: str) -> str:
                                      imageset_name=imageset_name,
                                      imageset_data=None,
                                      config_options={},
+                                     selected_options=_empty_selection_map(),
                                      error="Imageset not found"), 404
             elif response.status_code != 200:
                 logging.error(f"API returned status {response.status_code}: {response.text}")
@@ -551,6 +569,7 @@ def imageset_edit(foldername: str, imageset_name: str) -> str:
                                      imageset_name=imageset_name,
                                      imageset_data=None,
                                      config_options={},
+                                     selected_options=_empty_selection_map(),
                                      error="Failed to fetch imageset data"), 500
             
             imageset_data = response.json()
@@ -563,6 +582,7 @@ def imageset_edit(foldername: str, imageset_name: str) -> str:
                                  imageset_name=imageset_name,
                                  imageset_data=None,
                                  config_options={},
+                                 selected_options=_empty_selection_map(),
                                  error="Failed to connect to API"), 500
         
         # Get configuration options for form dropdowns
@@ -574,12 +594,20 @@ def imageset_edit(foldername: str, imageset_name: str) -> str:
             'posted_to': config.config_data.get('posted_to', [])
         }
         
+        selected_options = {
+            'edits': _csv_to_list(imageset_data.get('edits')),
+            'needs': _csv_to_list(imageset_data.get('needs')),
+            'good_for': _csv_to_list(imageset_data.get('good_for')),
+            'posted_to': _csv_to_list(imageset_data.get('posted_to'))
+        }
+        
         return render_template('imageset_edit.html',
                              title=f"Edit Imageset: {imageset_name}",
                              foldername=foldername,
                              imageset_name=imageset_name,
                              imageset_data=imageset_data,
-                             config_options=config_options)
+                             config_options=config_options,
+                             selected_options=selected_options)
                              
     except Exception as e:
         logging.error(f"Error in imageset_edit endpoint: {e}", exc_info=True)

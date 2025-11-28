@@ -15,8 +15,39 @@
         <div class="folder-path" style="font-family: var(--font-mono); background: var(--muted); padding: var(--space-sm); border-radius: var(--radius-sm); margin-bottom: var(--space-md); word-break: break-all;">
             {{ foldername }} / {{ imageset_name }}
         </div>
+        <style>
+            .checkbox-grid {
+                display: flex;
+                flex-wrap: wrap;
+                gap: var(--space-sm);
+            }
+            .checkbox-pill {
+                display: inline-flex;
+                align-items: center;
+                gap: 0.35rem;
+                padding: 0.35rem 0.65rem;
+                border: 1px solid var(--border);
+                border-radius: var(--radius-pill, 999px);
+                background: var(--bg);
+                cursor: pointer;
+                font-size: 0.9rem;
+            }
+            .checkbox-pill input {
+                accent-color: var(--accent);
+            }
+            .form-group.has-changes {
+                border: 1px solid var(--accent);
+                border-radius: var(--radius-sm);
+                padding: var(--space-sm);
+                background: color-mix(in srgb, var(--accent) 8%, transparent);
+            }
+        </style>
         
         {% if imageset_data %}
+            {% set selected_edits = selected_options.edits if selected_options is defined else [] %}
+            {% set selected_needs = selected_options.needs if selected_options is defined else [] %}
+            {% set selected_good_for = selected_options.good_for if selected_options is defined else [] %}
+            {% set selected_posted_to = selected_options.posted_to if selected_options is defined else [] %}
             <form method="POST" action="/api/imageset/{{ foldername }}/{{ imageset_name }}/update" style="max-width: 800px;">
                 <div class="card">
                     <div class="card-header">
@@ -26,11 +57,11 @@
                         <div style="display: grid; gap: var(--space-md);">
                             
                             <!-- Status Field -->
-                            <div class="form-group">
+                            <div class="form-group" data-form-group="status">
                                 <label for="status" style="display: block; font-weight: 600; margin-bottom: var(--space-xs); color: var(--text);">
                                     Status
                                 </label>
-                                <select id="status" name="status" class="form-control" style="width: 100%; padding: var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text);">
+                                <select id="status" name="status" class="form-control" style="width: 100%; padding: var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text);" data-track-change="true" data-highlight-group="status">
                                     <option value="">Select status...</option>
                                     {% for option in config_options.status %}
                                         <option value="{{ option }}" {% if imageset_data.status == option %}selected{% endif %}>{{ option }}</option>
@@ -39,70 +70,102 @@
                             </div>
                             
                             <!-- Edits Field -->
-                            <div class="form-group">
-                                <label for="edits" style="display: block; font-weight: 600; margin-bottom: var(--space-xs); color: var(--text);">
+                            <div class="form-group" data-form-group="edits">
+                                <label style="display: block; font-weight: 600; margin-bottom: var(--space-xs); color: var(--text);">
                                     Edits
                                 </label>
-                                <input type="text" 
-                                       id="edits" 
-                                       name="edits" 
-                                       value="{{ imageset_data.edits or '' }}" 
-                                       placeholder="Enter comma-separated values (e.g., creative, photoshop)"
-                                       class="form-control"
-                                       style="width: 100%; padding: var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text);">
-                                <div style="font-size: 0.75rem; color: var(--text); opacity: 0.7; margin-top: var(--space-xs);">
-                                    Available options: {{ config_options.edits | join(', ') }}
+                                <input type="hidden"
+                                       id="edits"
+                                       name="edits"
+                                       value="{{ imageset_data.edits or '' }}"
+                                       data-track-change="true"
+                                       data-highlight-group="edits">
+                                <div class="checkbox-grid" data-checkbox-field="edits">
+                                    {% for option in config_options.edits %}
+                                        {% set checkbox_id = 'edits_' ~ loop.index %}
+                                        <label class="checkbox-pill" for="{{ checkbox_id }}">
+                                            <input type="checkbox"
+                                                   id="{{ checkbox_id }}"
+                                                   value="{{ option }}"
+                                                   {% if option in selected_edits %}checked{% endif %}>
+                                            {{ option }}
+                                        </label>
+                                    {% endfor %}
                                 </div>
                             </div>
                             
                             <!-- Needs Field -->
-                            <div class="form-group">
-                                <label for="needs" style="display: block; font-weight: 600; margin-bottom: var(--space-xs); color: var(--text);">
+                            <div class="form-group" data-form-group="needs">
+                                <label style="display: block; font-weight: 600; margin-bottom: var(--space-xs); color: var(--text);">
                                     Needs
                                 </label>
-                                <input type="text" 
-                                       id="needs" 
-                                       name="needs" 
-                                       value="{{ imageset_data.needs or '' }}" 
-                                       placeholder="Enter comma-separated values (e.g., upscale, vector)"
-                                       class="form-control"
-                                       style="width: 100%; padding: var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text);">
-                                <div style="font-size: 0.75rem; color: var(--text); opacity: 0.7; margin-top: var(--space-xs);">
-                                    Available options: {{ config_options.needs | join(', ') }}
+                                <input type="hidden"
+                                       id="needs"
+                                       name="needs"
+                                       value="{{ imageset_data.needs or '' }}"
+                                       data-track-change="true"
+                                       data-highlight-group="needs">
+                                <div class="checkbox-grid" data-checkbox-field="needs">
+                                    {% for option in config_options.needs %}
+                                        {% set checkbox_id = 'needs_' ~ loop.index %}
+                                        <label class="checkbox-pill" for="{{ checkbox_id }}">
+                                            <input type="checkbox"
+                                                   id="{{ checkbox_id }}"
+                                                   value="{{ option }}"
+                                                   {% if option in selected_needs %}checked{% endif %}>
+                                            {{ option }}
+                                        </label>
+                                    {% endfor %}
                                 </div>
                             </div>
                             
                             <!-- Good For Field -->
-                            <div class="form-group">
-                                <label for="good_for" style="display: block; font-weight: 600; margin-bottom: var(--space-xs); color: var(--text);">
+                            <div class="form-group" data-form-group="good_for">
+                                <label style="display: block; font-weight: 600; margin-bottom: var(--space-xs); color: var(--text);">
                                     Good For
                                 </label>
-                                <input type="text" 
-                                       id="good_for" 
-                                       name="good_for" 
-                                       value="{{ imageset_data.good_for or '' }}" 
-                                       placeholder="Enter comma-separated values (e.g., stock, rb, poster)"
-                                       class="form-control"
-                                       style="width: 100%; padding: var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text);">
-                                <div style="font-size: 0.75rem; color: var(--text); opacity: 0.7; margin-top: var(--space-xs);">
-                                    Available options: {{ config_options.good_for | join(', ') }}
+                                <input type="hidden"
+                                       id="good_for"
+                                       name="good_for"
+                                       value="{{ imageset_data.good_for or '' }}"
+                                       data-track-change="true"
+                                       data-highlight-group="good_for">
+                                <div class="checkbox-grid" data-checkbox-field="good_for">
+                                    {% for option in config_options.good_for %}
+                                        {% set checkbox_id = 'good_for_' ~ loop.index %}
+                                        <label class="checkbox-pill" for="{{ checkbox_id }}">
+                                            <input type="checkbox"
+                                                   id="{{ checkbox_id }}"
+                                                   value="{{ option }}"
+                                                   {% if option in selected_good_for %}checked{% endif %}>
+                                            {{ option }}
+                                        </label>
+                                    {% endfor %}
                                 </div>
                             </div>
                             
                             <!-- Posted To Field -->
-                            <div class="form-group">
-                                <label for="posted_to" style="display: block; font-weight: 600; margin-bottom: var(--space-xs); color: var(--text);">
+                            <div class="form-group" data-form-group="posted_to">
+                                <label style="display: block; font-weight: 600; margin-bottom: var(--space-xs); color: var(--text);">
                                     Posted To
                                 </label>
-                                <input type="text" 
-                                       id="posted_to" 
-                                       name="posted_to" 
-                                       value="{{ imageset_data.posted_to or '' }}" 
-                                       placeholder="Enter comma-separated values (e.g., stock, rb, tp)"
-                                       class="form-control"
-                                       style="width: 100%; padding: var(--space-sm); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); color: var(--text);">
-                                <div style="font-size: 0.75rem; color: var(--text); opacity: 0.7; margin-top: var(--space-xs);">
-                                    Available options: {{ config_options.posted_to | join(', ') }}
+                                <input type="hidden"
+                                       id="posted_to"
+                                       name="posted_to"
+                                       value="{{ imageset_data.posted_to or '' }}"
+                                       data-track-change="true"
+                                       data-highlight-group="posted_to">
+                                <div class="checkbox-grid" data-checkbox-field="posted_to">
+                                    {% for option in config_options.posted_to %}
+                                        {% set checkbox_id = 'posted_to_' ~ loop.index %}
+                                        <label class="checkbox-pill" for="{{ checkbox_id }}">
+                                            <input type="checkbox"
+                                                   id="{{ checkbox_id }}"
+                                                   value="{{ option }}"
+                                                   {% if option in selected_posted_to %}checked{% endif %}>
+                                            {{ option }}
+                                        </label>
+                                    {% endfor %}
                                 </div>
                             </div>
                             
@@ -133,47 +196,100 @@
 {% block scripts %}
 {{ super() }}
 <script>
-// Add some basic form validation and UX improvements
+// Add enhanced form validation and UX improvements
 document.addEventListener('DOMContentLoaded', function() {
-    const form = document.querySelector('form');
-    const inputs = form.querySelectorAll('input[type="text"]');
-    
-    // Add visual feedback for form changes
-    inputs.forEach(input => {
-        const originalValue = input.value;
-        input.addEventListener('input', function() {
-            if (this.value !== originalValue) {
-                this.style.borderColor = 'var(--accent)';
-            } else {
-                this.style.borderColor = 'var(--border)';
-            }
-        });
-    });
-    
-    // Add confirmation before leaving if form has changes
-    form.addEventListener('submit', function(e) {
-        const hasChanges = Array.from(inputs).some(input => {
-            const originalValue = input.getAttribute('value') || '';
-            return input.value !== originalValue;
-        });
-        
-        if (hasChanges) {
-            if (!confirm('Are you sure you want to save these changes?')) {
+    try {
+        const form = document.querySelector('form');
+        if (!form) {
+            console.warn('Imageset edit form not found.');
+            return;
+        }
+
+        const findGroup = (name) => form.querySelector(`[data-form-group="${name}"]`);
+
+        const registerTrackedInputs = () => {
+            const tracked = Array.from(form.querySelectorAll('[data-track-change]'));
+            tracked.forEach(input => {
+                input.dataset.originalValue = input.value || '';
+                const updateHighlight = () => {
+                    const hasChanged = input.value !== (input.dataset.originalValue || '');
+                    const groupName = input.dataset.highlightGroup;
+                    const group = groupName ? findGroup(groupName) : null;
+                    if (group) {
+                        group.classList.toggle('has-changes', hasChanged);
+                    } else if (input.style) {
+                        input.style.borderColor = hasChanged ? 'var(--accent)' : 'var(--border)';
+                    }
+                };
+                input.addEventListener('input', updateHighlight);
+                input.addEventListener('change', updateHighlight);
+                updateHighlight();
+            });
+            return tracked;
+        };
+
+        const synchronizeCheckboxGroups = () => {
+            const groups = form.querySelectorAll('[data-checkbox-field]');
+            groups.forEach(group => {
+                const fieldName = group.dataset.checkboxField;
+                const hiddenInput = form.querySelector(`input[type="hidden"][name="${fieldName}"]`);
+                if (!hiddenInput) {
+                    console.warn(`Hidden input for field "${fieldName}" was not found.`);
+                    return;
+                }
+                const checkboxes = group.querySelectorAll('input[type="checkbox"]');
+                const normalize = (value) => (value || '')
+                    .split(',')
+                    .map(item => item.trim())
+                    .filter(Boolean);
+
+                const applyHiddenToUI = () => {
+                    const currentValues = normalize(hiddenInput.value);
+                    checkboxes.forEach(box => {
+                        box.checked = currentValues.includes(box.value);
+                    });
+                };
+
+                const syncToHidden = () => {
+                    const selectedValues = Array.from(checkboxes)
+                        .filter(box => box.checked)
+                        .map(box => box.value);
+                    const combined = selectedValues.join(', ');
+                    if (hiddenInput.value !== combined) {
+                        hiddenInput.value = combined;
+                        hiddenInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                };
+
+                checkboxes.forEach(box => box.addEventListener('change', syncToHidden));
+
+                applyHiddenToUI();
+                syncToHidden();
+            });
+        };
+
+        synchronizeCheckboxGroups();
+        const trackedInputs = registerTrackedInputs();
+
+        form.addEventListener('submit', function(e) {
+            const hasChanges = trackedInputs.some(input => input.value !== (input.dataset.originalValue || ''));
+            if (hasChanges && !confirm('Are you sure you want to save these changes?')) {
                 e.preventDefault();
             }
-        }
-    });
-    
-    // Add keyboard shortcuts
-    document.addEventListener('keydown', function(e) {
-        if (e.ctrlKey && e.key === 's') {
-            e.preventDefault();
-            form.submit();
-        }
-        if (e.key === 'Escape') {
-            window.location.href = '/imageset/{{ foldername }}/{{ imageset_name }}';
-        }
-    });
+        });
+
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                form.submit();
+            }
+            if (e.key === 'Escape') {
+                window.location.href = '/imageset/{{ foldername }}/{{ imageset_name }}';
+            }
+        });
+    } catch (err) {
+        console.error('Imageset edit enhancements failed:', err);
+    }
 });
 </script>
 {% endblock %}
