@@ -47,6 +47,12 @@ class ImageFile():
             basename = path_obj.stem
             extension = path_obj.suffix
             
+            # Remove upscale tags (up2, up3, up4, up6) from basename
+            upscale_tags = ["_up2", "_up3", "_up4", "_up6"]
+            for tag in upscale_tags:
+                if tag in basename:
+                    basename = basename.replace(tag, "")
+            
             thumbnail_name = f"{basename}_thumb{extension}"
             thumbnail_path = folder / thumbnail_name
             
