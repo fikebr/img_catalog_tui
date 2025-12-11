@@ -251,7 +251,13 @@ class Imageset():
             logging.error(error_msg)
             raise ValueError(error_msg)
         
-        self.toml.set(key="status", value=value)
+        try:
+            self.toml.set(key="status", value=value)
+            logging.info(f"Set status to '{value}' in TOML file: {self.toml.toml_file}")
+        except Exception as e:
+            logging.error(f"Failed to set status in TOML file: {e}", exc_info=True)
+            raise
+        
         self._sync_to_db()
         
         if value == "archive":

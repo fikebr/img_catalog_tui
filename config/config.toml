@@ -9,7 +9,7 @@ status = ["new", "keep", "edit", "working", "posted", "archive"]
 edits = ["creative", "photoshop", "rmbg", "up", "vector"]
 needs = ["orig", "thumbnail", "interview", "mockups"]
 good_for = ["stock", "rb", "poster", "sticker"]
-posted_to = ["stock", "rb", "tp", "faa", "etsy", "printify"]
+posted_to = ["stock", "rb", "tp", "faa", "etsy", "printify", "displate"]
 review_types = ["status", "edits", "needs", "good_for", "posted_to"]
 
 

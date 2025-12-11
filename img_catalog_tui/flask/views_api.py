@@ -308,20 +308,20 @@ def imageset_update(foldername: str, imageset: str):
         
         folder_path = folders_obj.folders[foldername]
         
-        # Create folder object and validate imageset exists
-        folder_obj = ImagesetFolder(config=config, foldername=folder_path)
-        if imageset not in folder_obj.imagesets:
+        # Validate imageset folder exists
+        imageset_path = os.path.join(folder_path, imageset)
+        if not os.path.exists(imageset_path) or not os.path.isdir(imageset_path):
             logging.warning(f"Imageset '{imageset}' not found in folder '{foldername}'")
             return jsonify({"error": f"Imageset '{imageset}' not found in folder '{foldername}'"}), 404
         
-        # Get the imageset object
-        imageset_obj = folder_obj.imagesets[imageset]
+        # Create a fresh Imageset object to ensure we work with latest TOML data
+        imageset_obj = Imageset(config=config, folder_name=folder_path, imageset_name=imageset)
         
         # Track which fields were updated
         updated_fields = []
         
-        # Update each field if provided
-        if 'status' in data:
+        # Update each field if provided (skip empty values to preserve existing data)
+        if 'status' in data and data['status'].strip():
             try:
                 imageset_obj.status = data['status']
                 updated_fields.append('status')
