@@ -12,20 +12,31 @@ class Imageset():
         self,
         config: Config,
         folder_name: str,
-        imageset_name: str
+        imageset_name: str,
+        imageset_id: int | None = None,
     ):
         
         self.config = config
         self.folder_name = folder_name
         self.imageset_name = imageset_name
         self.imageset_folder = self._get_imageset_folder()
-        self.toml = ImagesetToml(imageset_folder=self.imageset_folder)
+        self.imageset_id = imageset_id
+
+        # Lazy TOML access: DB is authoritative; TOML is derived/exported.
+        self._toml: ImagesetToml | None = None
+
+        # DB cache for fast property reads
+        self._db_row: dict | None = None
+        self._db_sections: dict[str, dict] = {}
+
+        # Ensure we have a DB record for this imageset (bootstrap if missing)
+        self._ensure_db_record(bootstrap_from_toml=True)
         
         # If status is already archive but folder not under _archive, move it now
         self._ensure_archive_location()
-        self.files = self._get_imageset_files() # dict{filename: dict{fullpath, ext, tags}}
+        self.files = self._get_imageset_files_db_first()  # dict{filename: dict{fullpath, ext, tags}}
 
-        self.get_exif_data()  # This will sync if it modifies TOML
+        self.get_exif_data()  # This will export TOML if it updates DB fields
         _ = self.orig_image
         
         # No sync needed here - only sync when data is modified
@@ -40,32 +51,226 @@ class Imageset():
     
         
     
-    def _sync_to_db(self) -> None:
-        """Sync the current imageset TOML data to the database.
-        
-        This method attempts to sync changes to the database after TOML modifications.
-        Errors are logged but don't interrupt execution (graceful degradation).
-        """
+    @property
+    def toml(self) -> ImagesetToml:
+        """Lazy accessor for the imageset TOML file (derived/exported)."""
+        if self._toml is None:
+            self._toml = ImagesetToml(imageset_folder=self.imageset_folder)
+        return self._toml
+
+    def _export_db_to_toml(self) -> bool:
+        """Export the current DB record to TOML (best-effort)."""
         try:
-            from img_catalog_tui.db.sync import sync_imageset_toml_to_db
-            
-            imageset_id = sync_imageset_toml_to_db(
-                config=self.config,
-                folder_path=self.folder_name,
-                imageset_name=self.imageset_name
-            )
-            
-            if imageset_id:
-                logging.debug(f"Successfully synced imageset '{self.imageset_name}' to database (ID: {imageset_id})")
-            else:
-                logging.warning(f"Database sync returned no ID for imageset '{self.imageset_name}'")
-                
-        except ImportError:
-            # Database module not available, skip sync
-            logging.debug("Database sync skipped: db.sync module not available")
+            from img_catalog_tui.db.sync import sync_imageset_db_to_toml
+
+            # Use the *actual* parent path (handles archived/moved imagesets).
+            parent_folder = os.path.dirname(self.imageset_folder.rstrip("\\/"))
+            ok = sync_imageset_db_to_toml(self.config, parent_folder, self.imageset_name)
+            if not ok:
+                logging.warning("DB->TOML export failed for imageset '%s'", self.imageset_name)
+            return ok
         except Exception as e:
-            # Log error but continue - graceful degradation
-            logging.warning(f"Failed to sync imageset '{self.imageset_name}' to database: {e}")
+            logging.warning(f"DB->TOML export failed for imageset '{self.imageset_name}': {e}")
+            return False
+
+    def _refresh_db_cache(self) -> None:
+        """Refresh cached DB row + sections for this imageset."""
+        if not self.imageset_id:
+            self._db_row = None
+            self._db_sections = {}
+            return
+
+        try:
+            from img_catalog_tui.db.imagesets import ImagesetsTable
+            from img_catalog_tui.db.imageset_sections import ImagesetSectionsTable
+
+            imagesets_table = ImagesetsTable(self.config)
+            row = imagesets_table.get_by_id(self.imageset_id)
+            self._db_row = row
+
+            sections_table = ImagesetSectionsTable(self.config)
+            sections = sections_table.get_by_imageset_id(self.imageset_id)
+            self._db_sections = {s["section_name"]: (s.get("section_data") or {}) for s in sections}
+        except Exception as e:
+            logging.warning(f"Failed to refresh DB cache for imageset '{self.imageset_name}': {e}")
+
+    def _ensure_db_record(self, bootstrap_from_toml: bool) -> None:
+        """Ensure this imageset exists in DB; create if missing."""
+        try:
+            from img_catalog_tui.db.utils import init_database
+            from img_catalog_tui.db.folders import FoldersTable
+            from img_catalog_tui.db.imagesets import ImagesetsTable
+            from img_catalog_tui.db.imageset_sections import ImagesetSectionsTable
+
+            init_database(self.config)
+
+            folders_table = FoldersTable(self.config)
+            imagesets_table = ImagesetsTable(self.config)
+            sections_table = ImagesetSectionsTable(self.config)
+
+            folder_name = os.path.basename(self.folder_name.rstrip("\\/"))
+            folder_row = folders_table.get_by_path(self.folder_name) or folders_table.get_by_name(folder_name)
+            if not folder_row:
+                folder_id = folders_table.create(folder_name, self.folder_name)
+                folder_row = folders_table.get_by_id(folder_id) if folder_id else None
+
+            if not folder_row:
+                logging.warning("Cannot ensure imageset DB record; folder missing in DB: %s", self.folder_name)
+                return
+
+            existing = imagesets_table.get_by_folder_path_and_name(self.folder_name, self.imageset_name)
+            if existing:
+                self.imageset_id = existing["id"]
+                self._refresh_db_cache()
+                return
+
+            # Bootstrap metadata from TOML only when the DB record doesn't exist.
+            status = None
+            edits = None
+            needs = None
+            good_for = None
+            posted_to = None
+            source = None
+            prompt = None
+            sections: dict[str, dict] = {}
+
+            if bootstrap_from_toml:
+                try:
+                    toml_obj = self.toml
+                    status = toml_obj.get(key="status") or None
+                    edits = toml_obj.get(key="edits") or None
+                    needs = toml_obj.get(key="needs") or None
+                    good_for = toml_obj.get(key="good_for") or None
+                    source = toml_obj.get(key="source") or None
+                    posted_to = toml_obj.get(section="biz", key="posted_to") or None
+
+                    if source:
+                        prompt = toml_obj.get(section=source, key="prompt") or None
+
+                    toml_data = toml_obj.get()
+                    if isinstance(toml_data, dict):
+                        top_level_keys = {"imageset", "status", "edits", "needs", "source", "good_for"}
+                        for section_name, section_data in toml_data.items():
+                            if section_name in top_level_keys:
+                                continue
+                            if isinstance(section_data, dict):
+                                sections[section_name] = section_data
+                except Exception as e:
+                    logging.warning("Bootstrap from TOML failed for %s: %s", self.imageset_name, e)
+
+            imageset_id = imagesets_table.create(
+                folder_id=folder_row["id"],
+                name=self.imageset_name,
+                folder_path=self.folder_name,
+                imageset_folder_path=self.imageset_folder,
+                status=status,
+                edits=edits,
+                needs=needs,
+                good_for=good_for,
+                posted_to=posted_to,
+                source=source,
+                prompt=prompt,
+            )
+
+            if imageset_id:
+                self.imageset_id = imageset_id
+                for section_name, section_data in sections.items():
+                    sections_table.update(imageset_id, section_name, section_data)
+                self._refresh_db_cache()
+        except Exception as e:
+            logging.warning(f"Failed to ensure DB record for imageset '{self.imageset_name}': {e}", exc_info=True)
+
+    def _get_imageset_files_db_first(self) -> dict[str, dict]:
+        """Prefer DB file records; fallback to filesystem scan."""
+        if self.imageset_id:
+            try:
+                from img_catalog_tui.db.imagesetfiles import ImagesetFilesTable
+
+                files_table = ImagesetFilesTable(self.config)
+                files_dict = files_table.get_files_dict(self.imageset_id)
+                if files_dict:
+                    return files_dict
+            except Exception as e:
+                logging.debug("DB file lookup failed; falling back to filesystem: %s", e)
+        return self._get_imageset_files()
+
+    def refresh_files_from_fs(self) -> bool:
+        """
+        Explicit filesystem -> DB refresh for this imageset.
+
+        This does **not** run automatically across folders; callers should invoke it
+        when they need DB file records/tags to reflect the current filesystem.
+        """
+        if not self.imageset_id:
+            self._ensure_db_record(bootstrap_from_toml=True)
+        if not self.imageset_id:
+            logging.warning("Cannot refresh files; imageset has no DB id: %s", self.imageset_name)
+            return False
+
+        try:
+            from img_catalog_tui.db.imagesets import ImagesetsTable
+            from img_catalog_tui.db.imagesetfiles import ImagesetFilesTable
+            from img_catalog_tui.db.imagesetfile_tags import ImagesetFileTagsTable
+
+            imagesets_table = ImagesetsTable(self.config)
+            files_table = ImagesetFilesTable(self.config)
+            tags_table = ImagesetFileTagsTable(self.config)
+
+            ok = files_table.sync_from_filesystem(self.imageset_id, self.imageset_folder, self.config)
+            if not ok:
+                return False
+
+            # Recompute tags for each file based on filename patterns.
+            file_records = files_table.get_by_imageset_id(self.imageset_id)
+            file_tags = self.config.get_file_tags()
+            for record in file_records:
+                filename = record.get("filename") or ""
+                tags: list[str] = []
+                for tag in file_tags:
+                    if f"_{tag}_" in filename or f"_{tag}." in filename:
+                        tags.append(tag)
+                tags_table.set_tags_for_file(record["id"], tags)
+
+            # Compute cover/orig image paths (best-effort).
+            cover_image_path = None
+            orig_image_path = None
+
+            image_files = [f for f in file_records if (f.get("file_type") == "image")]
+            if image_files:
+                thumb_files: list[str] = []
+                orig_files: list[str] = []
+                other_files: list[str] = []
+
+                for record in image_files:
+                    fullpath = record.get("fullpath") or ""
+                    if not fullpath:
+                        continue
+                    tags = tags_table.get_tags_by_file_id(record["id"])
+                    if "thumb" in tags:
+                        thumb_files.append(fullpath)
+                    elif "orig" in tags:
+                        orig_files.append(fullpath)
+                        if not orig_image_path:
+                            orig_image_path = fullpath
+                    else:
+                        other_files.append(fullpath)
+
+                if thumb_files:
+                    cover_image_path = thumb_files[0]
+                elif orig_files:
+                    cover_image_path = orig_files[0]
+                elif other_files:
+                    cover_image_path = other_files[0]
+
+            imagesets_table.update(self.imageset_id, cover_image_path=cover_image_path, orig_image_path=orig_image_path)
+
+            # Refresh in-memory view.
+            self.files = files_table.get_files_dict(self.imageset_id)
+            self._refresh_db_cache()
+            return True
+        except Exception as e:
+            logging.error(f"Failed to refresh imageset files from filesystem: {e}", exc_info=True)
+            return False
     
     def _validate_comma_separated_values(self, value: str, valid_options: list[str], field_name: str) -> None:
         """Validate comma-separated values against config options."""
@@ -211,15 +416,22 @@ class Imageset():
 
     @property
     def prompt(self) -> str:
-        source = self.toml.get(key="source")
-        if not source:
+        if self._db_row and isinstance(self._db_row.get("prompt"), str):
+            return self._db_row.get("prompt") or ""
+        # Fallback for legacy callers (should be rare in DB-first flow)
+        try:
+            source = self.toml.get(key="source")
+            if not source:
+                return ""
+            prompt_value = self.toml.get(section=source, key="prompt")
+            return prompt_value if isinstance(prompt_value, str) else str(prompt_value)
+        except Exception:
             return ""
-        # Use case-insensitive access for the "prompt" key within the source section
-        prompt_value = self.toml.get(section=source, key="prompt")
-        return prompt_value if isinstance(prompt_value, str) else str(prompt_value)
 
     @property
     def edits(self) -> str:
+        if self._db_row:
+            return self._db_row.get("edits") or ""
         return self.toml.get(key="edits")
         
     @edits.setter
@@ -233,12 +445,27 @@ class Imageset():
         if value and value.strip() and self.status != "edit":
             logging.info(f"Setting status to 'edit' because edits is being set to '{value}'")
             self.status = "edit"
-        
-        self.toml.set(key="edits", value=value)
-        self._sync_to_db()
+
+        try:
+            from img_catalog_tui.db.imagesets import ImagesetsTable
+
+            if not self.imageset_id:
+                self._ensure_db_record(bootstrap_from_toml=True)
+            if not self.imageset_id:
+                raise RuntimeError("Imageset has no DB id; cannot update edits")
+
+            imagesets_table = ImagesetsTable(self.config)
+            imagesets_table.update(self.imageset_id, edits=value)
+            self._refresh_db_cache()
+            self._export_db_to_toml()
+        except Exception as e:
+            logging.error(f"Failed to update edits for imageset '{self.imageset_name}': {e}", exc_info=True)
+            raise
 
     @property
     def status(self) -> str:
+        if self._db_row:
+            return self._db_row.get("status") or ""
         return self.toml.get(key="status")
     
     @status.setter
@@ -252,19 +479,29 @@ class Imageset():
             raise ValueError(error_msg)
         
         try:
-            self.toml.set(key="status", value=value)
-            logging.info(f"Set status to '{value}' in TOML file: {self.toml.toml_file}")
+            from img_catalog_tui.db.imagesets import ImagesetsTable
+
+            if not self.imageset_id:
+                self._ensure_db_record(bootstrap_from_toml=True)
+            if not self.imageset_id:
+                raise RuntimeError("Imageset has no DB id; cannot update status")
+
+            imagesets_table = ImagesetsTable(self.config)
+            imagesets_table.update(self.imageset_id, status=value)
+            self._refresh_db_cache()
+            self._export_db_to_toml()
+            logging.info(f"Set status to '{value}' for imageset '{self.imageset_name}' (DB-first)")
         except Exception as e:
-            logging.error(f"Failed to set status in TOML file: {e}", exc_info=True)
+            logging.error(f"Failed to set status in database: {e}", exc_info=True)
             raise
-        
-        self._sync_to_db()
         
         if value == "archive":
             self.archive_imageset()
 
     @property
     def needs(self) -> str:
+        if self._db_row:
+            return self._db_row.get("needs") or ""
         return self.toml.get(key="needs")
     
     @needs.setter
@@ -274,11 +511,26 @@ class Imageset():
         valid_needs = self.config.config_data.get("needs", [])
         self._validate_comma_separated_values(value, valid_needs, "needs")
         
-        self.toml.set(key="needs", value=value)
-        self._sync_to_db()
+        try:
+            from img_catalog_tui.db.imagesets import ImagesetsTable
+
+            if not self.imageset_id:
+                self._ensure_db_record(bootstrap_from_toml=True)
+            if not self.imageset_id:
+                raise RuntimeError("Imageset has no DB id; cannot update needs")
+
+            imagesets_table = ImagesetsTable(self.config)
+            imagesets_table.update(self.imageset_id, needs=value)
+            self._refresh_db_cache()
+            self._export_db_to_toml()
+        except Exception as e:
+            logging.error(f"Failed to update needs for imageset '{self.imageset_name}': {e}", exc_info=True)
+            raise
         
     @property
     def good_for(self) -> str:
+        if self._db_row:
+            return self._db_row.get("good_for") or ""
         return self.toml.get(key="good_for")
     
     @good_for.setter
@@ -288,12 +540,27 @@ class Imageset():
         valid_good_for = self.config.config_data.get("good_for", [])
         self._validate_comma_separated_values(value, valid_good_for, "good_for")
         
-        self.toml.set(key="good_for", value=value)
-        self._sync_to_db()
+        try:
+            from img_catalog_tui.db.imagesets import ImagesetsTable
+
+            if not self.imageset_id:
+                self._ensure_db_record(bootstrap_from_toml=True)
+            if not self.imageset_id:
+                raise RuntimeError("Imageset has no DB id; cannot update good_for")
+
+            imagesets_table = ImagesetsTable(self.config)
+            imagesets_table.update(self.imageset_id, good_for=value)
+            self._refresh_db_cache()
+            self._export_db_to_toml()
+        except Exception as e:
+            logging.error(f"Failed to update good_for for imageset '{self.imageset_name}': {e}", exc_info=True)
+            raise
         
     
     @property
     def posted_to(self) -> str:
+        if self._db_row:
+            return self._db_row.get("posted_to") or ""
         return self.toml.get(section="biz", key="posted_to")
 
     @posted_to.setter
@@ -303,8 +570,21 @@ class Imageset():
         valid_posted_to = self.config.config_data.get("posted_to", [])
         self._validate_comma_separated_values(value, valid_posted_to, "posted_to")
         
-        self.toml.set(section="biz", key="posted_to", value=value)
-        self._sync_to_db()
+        try:
+            from img_catalog_tui.db.imagesets import ImagesetsTable
+
+            if not self.imageset_id:
+                self._ensure_db_record(bootstrap_from_toml=True)
+            if not self.imageset_id:
+                raise RuntimeError("Imageset has no DB id; cannot update posted_to")
+
+            imagesets_table = ImagesetsTable(self.config)
+            imagesets_table.update(self.imageset_id, posted_to=value)
+            self._refresh_db_cache()
+            self._export_db_to_toml()
+        except Exception as e:
+            logging.error(f"Failed to update posted_to for imageset '{self.imageset_name}': {e}", exc_info=True)
+            raise
         
 
 
@@ -358,8 +638,9 @@ class Imageset():
             # Update the files dict to reflect the change
             self.files = self._get_imageset_files()
             
-            # Sync file changes to database
-            self._sync_to_db()
+            # Explicitly refresh filesystem->DB (file rename) and export derived TOML.
+            self.refresh_files_from_fs()
+            self._export_db_to_toml()
             
             return new_filename
             
@@ -369,8 +650,9 @@ class Imageset():
 
 
     def to_dict(self):
-        biz = self.toml.get(section="biz")
-        
+        biz = self._db_sections.get("biz", {}) if isinstance(self._db_sections, dict) else {}
+        source = (self._db_row or {}).get("source") if self._db_row else ""
+
         data = {
             "imageset_name": self.imageset_name,
             "imageset_folder": self.imageset_folder,
@@ -380,7 +662,7 @@ class Imageset():
             "posted_to": self.posted_to,
             "good_for": self.good_for,
             "prompt": self.prompt,
-            "source": self.toml.get(key="source"),
+            "source": source or "",
             "files": self.files,
             "cover_image": self.cover_image
         }
@@ -418,11 +700,20 @@ class Imageset():
             
             # Update the imageset_folder path to reflect the new location
             self.imageset_folder = new_imageset_path
-            # Reinitialize toml with new location
-            self.toml = ImagesetToml(imageset_folder=self.imageset_folder)
-            
-            # Sync imageset location change to database
-            self._sync_to_db()
+            self._toml = None
+
+            # Update DB location (DB is authoritative) then refresh file records.
+            if self.imageset_id:
+                try:
+                    from img_catalog_tui.db.imagesets import ImagesetsTable
+
+                    imagesets_table = ImagesetsTable(self.config)
+                    imagesets_table.update(self.imageset_id, imageset_folder_path=self.imageset_folder, status="archive")
+                except Exception as e:
+                    logging.warning(f"Failed to update DB paths during archive: {e}")
+
+            self.refresh_files_from_fs()
+            self._export_db_to_toml()
             
             logging.info(f"Successfully archived imageset: {self.imageset_name}")
             return new_imageset_path
@@ -524,11 +815,12 @@ class Imageset():
             self.imageset_folder = new_imageset_path
             # Update the folder_name to reflect the new parent folder
             self.folder_name = new_folder_path
-            # Reinitialize toml with new location
-            self.toml = ImagesetToml(imageset_folder=self.imageset_folder)
-            
-            # Sync other imageset fields to database
-            self._sync_to_db()
+            self._toml = None
+
+            # Refresh file records + derived TOML for the new location.
+            self.refresh_files_from_fs()
+            self._refresh_db_cache()
+            self._export_db_to_toml()
             
             logging.info(f"Successfully moved imageset '{self.imageset_name}' to folder '{new_folder_path}'")
             return new_imageset_path
@@ -568,58 +860,65 @@ class Imageset():
             logging.info(f"Relocating archived imageset from {self.imageset_folder} to {target_path}")
             os.rename(self.imageset_folder, target_path)
             self.imageset_folder = target_path
-            # Reinitialize toml to point at new folder
-            self.toml = ImagesetToml(imageset_folder=self.imageset_folder)
-            
-            # Sync location change to database
-            self._sync_to_db()
+            self._toml = None
+
+            if self.imageset_id:
+                try:
+                    from img_catalog_tui.db.imagesets import ImagesetsTable
+
+                    ImagesetsTable(self.config).update(self.imageset_id, imageset_folder_path=self.imageset_folder)
+                except Exception as e:
+                    logging.warning(f"Failed to update DB paths during archive relocation: {e}")
+
+            self.refresh_files_from_fs()
+            self._refresh_db_cache()
+            self._export_db_to_toml()
         except Exception as e:
             logging.error(f"Error ensuring archive location for {self.imageset_name}: {e}", exc_info=True)
             raise
         
     def get_exif_data(self):
-        """get the exif data and set into TOML"""
-        
-        toml_data = self.toml.get()
-        source = toml_data.get("source", None) if isinstance(toml_data, dict) else None
-        
-        logging.debug(f"source: {source}")
-        
-        needs_exif = False
-        
-        if not source or source == "unknown":
-            needs_exif = True
-        else:
-            toml_data = self.toml.get()
-            if source and source not in toml_data:
-                needs_exif = True
-        
-        if needs_exif:
-            from img_catalog_tui.core.imageset_metadata import ImagesetMetaData
-            
-            orig_file = self.orig_image
-            if orig_file is None:
-                logging.warning(f"No orig file found for imageset {self.imageset_name}, skipping EXIF extraction")
-                # Set default values when no orig file is available
-                self.toml.set(key="source", value="unknown")
+        """Extract EXIF/metadata and persist to DB (then export to TOML)."""
+        try:
+            if not self.imageset_id:
+                self._ensure_db_record(bootstrap_from_toml=True)
+            if not self.imageset_id:
                 return
-            
+
+            current_source = (self._db_row or {}).get("source") or ""
+            current_source = current_source.strip().lower()
+
+            has_section = bool(current_source and current_source in self._db_sections)
+            needs_exif = (not current_source) or (current_source == "unknown") or (not has_section)
+
+            if not needs_exif:
+                return
+
+            from img_catalog_tui.core.imageset_metadata import ImagesetMetaData
+            from img_catalog_tui.db.imagesets import ImagesetsTable
+            from img_catalog_tui.db.imageset_sections import ImagesetSectionsTable
+
+            orig_file = self.orig_image
+            if not orig_file:
+                logging.warning("No orig file found for imageset %s; marking source=unknown", self.imageset_name)
+                ImagesetsTable(self.config).update(self.imageset_id, source="unknown", prompt=None)
+                self._refresh_db_cache()
+                self._export_db_to_toml()
+                return
+
             metadata = ImagesetMetaData(imagefile=orig_file)
-            logging.debug(f"exif source: {metadata.source}")
-            logging.debug(f"exif data: {metadata.data}")
-            
-            # Set the source at top level
-            if metadata.source:
-                self.toml.set(key="source", value=metadata.source)
-                # Only create a section if we have a valid source name
-                self.toml.set(section=metadata.source, value=metadata.data)
-            else:
-                # No specific source detected, store as other data
-                self.toml.set(key="source", value="other")
-                self.toml.set(section="other", value=metadata.data)
-            
-            # Sync changes to database
-            self._sync_to_db()
+            section_name = (metadata.source or "other").strip() or "other"
+            section_data = metadata.data if isinstance(metadata.data, dict) else {}
+            prompt = section_data.get("prompt") if isinstance(section_data, dict) else None
+
+            ImagesetsTable(self.config).update(self.imageset_id, source=section_name, prompt=prompt)
+            ImagesetSectionsTable(self.config).update(self.imageset_id, section_name, section_data)
+
+            self._refresh_db_cache()
+            self._export_db_to_toml()
+        except Exception as e:
+            logging.error(f"Error extracting EXIF data for imageset {self.imageset_name}: {e}", exc_info=True)
+            return
             
     def _get_imageset_folder(self):
         if not os.path.exists(self.folder_name):
@@ -713,7 +1012,7 @@ class Imageset():
         pass
 
 
-    def interview_image(self, version: str = "orig"):
+    def interview_image(self, version: str = "orig", interview_template: str = "default"):
         """Create interview files for the imageset using AI analysis."""
         
         interview_file = self.get_file_interview()
@@ -741,15 +1040,16 @@ class Imageset():
             # Import and run the interview process
             from img_catalog_tui.core.imageset_interview import Interview
             
-            interview = Interview(config=self.config, image_file=final_image)
+            interview = Interview(config=self.config, interview_template=interview_template, image_file=final_image)
             
             # Execute the complete interview workflow
             interview.interview_image()
             
             logging.info(f"Interview process completed for imageset: {self.imageset_name}")
             
-            # Sync interview files to database
-            self._sync_to_db()
+            # Interview writes files to disk; refresh filesystem->DB explicitly.
+            self.refresh_files_from_fs()
+            self._export_db_to_toml()
             
             return interview.interview_parsed
             

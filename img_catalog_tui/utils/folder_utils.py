@@ -3,14 +3,13 @@ Folder utility functions for the Image Catalog TUI application.
 """
 
 import logging
-import toml
-from pathlib import Path
-from typing import Optional
 
 
-def get_folder_path(foldername: str) -> Optional[str]:
+def get_folder_path(foldername: str) -> str | None:
     """
-    Get folder path for a foldername without loading full Folders object.
+    Get folder path for a foldername (DB-first).
+
+    DB is authoritative. This helper avoids loading the full `Folders` manager.
     
     Args:
         foldername: Name of the folder to look up
@@ -19,17 +18,15 @@ def get_folder_path(foldername: str) -> Optional[str]:
         Full path to the folder if found, None otherwise
     """
     try:
-        # Get path to folders.toml file
-        current_dir = Path(__file__).parent
-        folders_toml_path = current_dir.parent / "db" / "folders.toml"
-        
-        # Read and parse TOML file
-        with open(folders_toml_path, 'r', encoding='utf-8') as file:
-            toml_data = toml.load(file)
-        
-        # Return the folder path if found
-        return toml_data.get("folders", {}).get(foldername)
-        
+        from img_catalog_tui.config import Config
+        from img_catalog_tui.db.utils import init_database
+        from img_catalog_tui.db.folders import FoldersTable
+
+        config = Config()
+        init_database(config)
+        folders_table = FoldersTable(config)
+        row = folders_table.get_by_name(foldername)
+        return row["path"] if row else None
     except Exception as e:
-        logging.error(f"Error reading folders.toml for foldername '{foldername}': {e}")
+        logging.error(f"Error looking up folder '{foldername}' in database: {e}", exc_info=True)
         return None

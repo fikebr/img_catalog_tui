@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Imageset Report - {{ imageset_name }}</title>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --surface:#0f172a;
+      --muted:#111827;
+      --border:#23324a;
+      --text:#e5e7eb;
+      --accent:#60a5fa;
+      --good:#34d399;
+      --warn:#fbbf24;
+      --bad:#f87171;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,var(--bg),#020617);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
+    header{position:sticky;top:0;background:rgba(15,23,42,0.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--border)}
+    .container{max-width:1100px;margin:0 auto;padding:16px}
+    h1{margin:0;font-size:20px}
+    .sub{margin-top:6px;color:rgba(229,231,235,0.75);font-size:13px}
+    .grid{display:grid;grid-template-columns:1.2fr 0.8fr;gap:16px}
+    @media (max-width: 900px){.grid{grid-template-columns:1fr}}
+    .card{background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+    .card h2{margin:0;font-size:16px}
+    .card-header{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+    .card-body{padding:14px}
+    .kv{display:grid;grid-template-columns:140px 1fr;gap:8px 12px;font-size:14px}
+    .k{color:rgba(229,231,235,0.75)}
+    .v{word-break:break-word}
+    .pill{display:inline-block;padding:4px 10px;border-radius:999px;font-size:12px;border:1px solid var(--border);background:rgba(255,255,255,0.03)}
+    .pill.good{border-color:rgba(52,211,153,0.35)}
+    .pill.warn{border-color:rgba(251,191,36,0.35)}
+    .pill.bad{border-color:rgba(248,113,113,0.35)}
+    img{max-width:100%;height:auto;border-radius:10px;border:1px solid var(--border);object-fit:contain}
+    pre{white-space:pre-wrap;word-break:break-word;margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:1.4}
+    ul{margin:0;padding-left:18px}
+    a{color:var(--accent)}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1>Imageset Report: {{ imageset_name }}</h1>
+      <div class="sub">
+        Folder: <span style="font-family: ui-monospace, Menlo, Consolas, monospace;">{{ imageset.imageset_folder }}</span><br/>
+        Generated: {{ generated_at }}
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="grid">
+      <section class="card">
+        <div class="card-header">
+          <h2>Preview</h2>
+          {% if imageset.status %}
+            <span class="pill {% if imageset.status == 'keep' %}good{% elif imageset.status == 'archive' %}bad{% else %}warn{% endif %}">
+              status={{ imageset.status }}
+            </span>
+          {% endif %}
+        </div>
+        <div class="card-body">
+          {% if cover_basename %}
+            <div style="margin-bottom:12px;">
+              <div class="sub" style="margin-bottom:6px;">Cover</div>
+              <img src="{{ cover_basename }}" alt="Cover image" />
+            </div>
+          {% endif %}
+          {% if orig_basename and orig_basename != cover_basename %}
+            <div>
+              <div class="sub" style="margin-bottom:6px;">Original</div>
+              <img src="{{ orig_basename }}" alt="Original image" />
+            </div>
+          {% endif %}
+          {% if not cover_basename and not orig_basename %}
+            <div class="sub">No image preview available.</div>
+          {% endif %}
+        </div>
+      </section>
+
+      <aside class="card">
+        <div class="card-header"><h2>Metadata</h2></div>
+        <div class="card-body">
+          <div class="kv">
+            <div class="k">status</div><div class="v">{{ imageset.status }}</div>
+            <div class="k">edits</div><div class="v">{{ imageset.edits }}</div>
+            <div class="k">needs</div><div class="v">{{ imageset.needs }}</div>
+            <div class="k">good_for</div><div class="v">{{ imageset.good_for }}</div>
+            <div class="k">posted_to</div><div class="v">{{ imageset.posted_to }}</div>
+            <div class="k">source</div><div class="v">{{ imageset.source }}</div>
+          </div>
+          {% if imageset.prompt %}
+            <div style="margin-top:14px;">
+              <div class="sub" style="margin-bottom:6px;">Prompt</div>
+              <pre>{{ imageset.prompt }}</pre>
+            </div>
+          {% endif %}
+        </div>
+      </aside>
+    </div>
+
+    <section class="card" style="margin-top:16px;">
+      <div class="card-header"><h2>Interview</h2></div>
+      <div class="card-body">
+        {% if interview_text %}
+          <pre>{{ interview_text }}</pre>
+        {% else %}
+          <div class="sub">No interview output found.</div>
+        {% endif %}
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:16px;">
+      <div class="card-header"><h2>Files</h2></div>
+      <div class="card-body">
+        {% if imageset.files %}
+          <ul>
+          {% for filename, fileinfo in imageset.files.items() %}
+            <li>
+              <a href="{{ filename }}">{{ filename }}</a>
+              {% if fileinfo.tags %}<span class="sub"> (tags: {{ fileinfo.tags|join(', ') }})</span>{% endif %}
+            </li>
+          {% endfor %}
+          </ul>
+        {% else %}
+          <div class="sub">No files recorded.</div>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+</body>
+</html>
+

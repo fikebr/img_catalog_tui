@@ -4,8 +4,8 @@ Logging module for the application.
 Uses a ProjectLogger dataclass to configure the root logger with:
 - Console + file handlers
 - File path: <project_root>/log/YYYY-MM-DD.log
-- Auto-rotates daily at midnight
-- Keeps only `keep` most recent log files
+- No in-process rotation (avoids Windows file-lock rollover issues)
+- Keeps only `keep` most recent log files (manual prune)
 - Format: HHMMSS - ERR|WRN|INF|DBG - file(12) - function(16):linenum - message
 """
 
@@ -16,7 +16,6 @@ import os
 from dataclasses import dataclass
 from datetime import datetime
 from glob import glob
-from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 
 
@@ -117,16 +116,14 @@ class ProjectLogger:
 
         # Daily rotating file handler (only app messages go to file)
         try:
-            fh = TimedRotatingFileHandler(
+            # NOTE: On Windows, log rollover can fail with WinError 32 if any other
+            # process (or another handler) has the file open. We avoid rollover
+            # entirely and just write to a per-day filename.
+            fh = logging.FileHandler(
                 filename=log_path,
-                when="midnight",
-                interval=1,
-                backupCount=self.keep,
                 encoding="utf-8",
-                delay=False,
-                utc=False,
+                delay=True,
             )
-            fh.suffix = "%Y-%m-%d.log"
             fh.setLevel(self.level)
             fh.setFormatter(formatter)
             fh.addFilter(_AppOnlyFilter())  # Only log app messages to file

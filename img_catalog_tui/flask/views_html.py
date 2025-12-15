@@ -322,30 +322,48 @@ def folder(foldername: str) -> str:
                                  folder_data={},
                                  error=f"Folder '{foldername}' not found"), 404
         
-        # Get folder data with detailed imageset information
+        # Get folder data with detailed imageset information (DB-first)
         folder_path = folders_obj.folders[foldername]
-        folder_obj = ImagesetFolder(config=config, foldername=folder_path)
-        
-        # Create enhanced folder data with imageset details
+        from img_catalog_tui.core.folder import list_imagesets_db, summarize_imagesets_by_status
+        from img_catalog_tui.db.imagesetfiles import ImagesetFilesTable
+
+        imagesets_rows = list_imagesets_db(config, folder_path, include_archived=False)
+        files_table = ImagesetFilesTable(config)
+
+        # Create enhanced folder data with imageset details (dicts)
         folder_data = {
-            'foldername': folder_obj.foldername,
-            'imageset_count': len(folder_obj.imagesets),
+            'foldername': folder_path,
+            'imageset_count': len(imagesets_rows),
             'imagesets': {},
             'counts': {
                 'status': {}
             }
         }
         
-        # Add detailed imageset information and count by status
-        for imageset_name, imageset_obj in folder_obj.imagesets.items():
-            folder_data['imagesets'][imageset_name] = imageset_obj.to_dict()
-            
-            # Count imagesets by status
-            status = imageset_obj.status
-            if status in folder_data['counts']['status']:
-                folder_data['counts']['status'][status] += 1
-            else:
-                folder_data['counts']['status'][status] = 1
+        folder_data['counts']['status'] = summarize_imagesets_by_status(imagesets_rows)
+
+        # Add detailed imageset info (from DB rows)
+        for row in imagesets_rows:
+            imageset_name = row.get("name") or ""
+            if not imageset_name:
+                continue
+
+            cover = (row.get("cover_image_path") or "").replace("\\", "/")
+            file_records = files_table.get_by_imageset_id(row["id"]) if row.get("id") else []
+
+            folder_data['imagesets'][imageset_name] = {
+                "imageset_name": imageset_name,
+                "imageset_folder": row.get("imageset_folder_path") or "",
+                "status": row.get("status") or "",
+                "edits": row.get("edits") or "",
+                "needs": row.get("needs") or "",
+                "posted_to": row.get("posted_to") or "",
+                "good_for": row.get("good_for") or "",
+                "prompt": row.get("prompt") or "",
+                "source": row.get("source") or "",
+                "files": file_records,
+                "cover_image": cover,
+            }
         
         return render_template('folder.html', 
                              title=f"Folder: {foldername}", 
@@ -430,26 +448,30 @@ def batch_update_form(foldername: str) -> str:
                                  config_options={},
                                  error=f"Folder '{foldername}' not found"), 404
         
-        # Get folder data with imagesets
+        # Get folder data with imagesets (DB-first)
         folder_path = folders_obj.folders[foldername]
-        folder_obj = ImagesetFolder(config=config, foldername=folder_path)
+        from img_catalog_tui.core.folder import list_imagesets_db
+        imagesets_rows = list_imagesets_db(config, folder_path, include_archived=False)
         
         # Create folder data for the template
         folder_data = {
-            'foldername': folder_obj.foldername,
-            'imageset_count': len(folder_obj.imagesets),
+            'foldername': folder_path,
+            'imageset_count': len(imagesets_rows),
             'imagesets': {}
         }
         
         # Add imageset information with basic details
-        for imageset_name, imageset_obj in folder_obj.imagesets.items():
+        for row in imagesets_rows:
+            imageset_name = row.get("name") or ""
+            if not imageset_name:
+                continue
             folder_data['imagesets'][imageset_name] = {
                 'name': imageset_name,
-                'status': imageset_obj.status,
-                'edits': imageset_obj.edits,
-                'needs': imageset_obj.needs,
-                'good_for': imageset_obj.good_for,
-                'posted_to': imageset_obj.posted_to
+                'status': row.get("status") or "",
+                'edits': row.get("edits") or "",
+                'needs': row.get("needs") or "",
+                'good_for': row.get("good_for") or "",
+                'posted_to': row.get("posted_to") or "",
             }
         
         # Get configuration options for form dropdowns

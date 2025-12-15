@@ -41,6 +41,21 @@ class Config:
         # Load configuration immediately
         self._load_config()
         self._load_menu_config()
+
+    def load(self) -> bool:
+        """
+        Backwards-compatible loader used by older entrypoints.
+
+        Newer code loads config during `__init__`, but `img_catalog_tui/main.py`
+        still calls `config.load()`. Keep this method to avoid startup crashes.
+        """
+        try:
+            self._load_config()
+            self._load_menu_config()
+            return True
+        except Exception as e:
+            logging.error(f"Failed to load configuration: {e}", exc_info=True)
+            return False
         
     def _load_config(self) -> None:
         """

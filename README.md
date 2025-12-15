@@ -35,6 +35,21 @@ This application is distributed as a standalone executable. No installation is r
 img-catalog-tui --input_folder <path_to_images> [--config_file <path_to_config>]
 ```
 
+## Database + TOML sync (explicit commands)
+
+DB is authoritative. Use these explicit commands when you want to initialize the DB schema or import/export TOML.
+
+```bash
+# Initialize SQLite schema (creates tables/indexes)
+uv run -m img_catalog_tui.db.sync init-db
+
+# Import folders + imagesets from TOML/filesystem into DB (manual TOML edits supported)
+uv run -m img_catalog_tui.db.sync import-toml
+
+# Export folders + imagesets from DB into TOML files
+uv run -m img_catalog_tui.db.sync export-toml
+```
+
 ### Required Parameters:
 - `--input_folder`: Path to the folder containing images to process
 

@@ -8,7 +8,7 @@ from typing import Dict, Any, Callable
 from img_catalog_tui.config import Config
 from img_catalog_tui.core.folder import folder_scan
 from img_catalog_tui.core.folder_index import folder_index
-from img_catalog_tui.core.imageset import generate_html_report, process_interview
+from img_catalog_tui.core.imageset_commands import generate_html_report, process_interview
 
 
 # Command handler type

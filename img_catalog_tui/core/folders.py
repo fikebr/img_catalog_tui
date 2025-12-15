@@ -1,27 +1,22 @@
-
 from pathlib import Path
-import toml
 import logging
 
 from img_catalog_tui.config import Config
 
 
 class Folders:
-    
-    def __init__(self, config: Config | None = None):
-        """
-        Initialize Folders manager.
-        
-        Uses TOML files for storage. Database synchronization is handled separately
-        via the sync module.
-        
-        Args:
-            config: Optional Config object for database operations
-        """
+    """
+    Folder registry (DB-first).
+
+    - **DB is authoritative** for reads/writes.
+    - `img_catalog_tui/db/folders.toml` is **derived** and is exported after DB writes.
+    - Manual TOML changes are imported only via explicit sync functions/commands.
+    """
+
+    def __init__(self, config: Config):
         self.config = config
         self.folders_toml_file = self._folders_toml_file()
-        self.toml = self._parse_toml()
-        self.folders: dict[str, str] = self.toml["folders"]
+        self.folders = self._load_from_db()
         
     def _folders_toml_file(self) -> Path:
         """Get the absolute path to the folders.toml file."""
@@ -36,179 +31,104 @@ class Folders:
             raise FileNotFoundError(f"folders.toml file not found at: {absolute_path}")
         
         return absolute_path
-    
-    def _parse_toml(self) -> dict:
-        """Parse the folders.toml file and return its contents as a dictionary."""
+
+    def _load_from_db(self) -> dict[str, str]:
+        """Load folder registry from the database."""
         try:
-            with open(self.folders_toml_file, 'r', encoding='utf-8') as file:
-                return toml.load(file)
-        except toml.TomlDecodeError as e:
-            raise ValueError(f"Invalid TOML format in {self.folders_toml_file}: {e}")
+            from img_catalog_tui.db.utils import init_database
+            from img_catalog_tui.db.folders import FoldersTable
+
+            init_database(self.config)
+            folders_table = FoldersTable(self.config)
+            folders = folders_table.get_all_dict()
+            logging.debug("Loaded %s folders from database", len(folders))
+            return folders
         except Exception as e:
-            raise IOError(f"Error reading {self.folders_toml_file}: {e}")
-        
-    def _update_toml(self) -> bool:
-        """Update the TOML file with current folders data."""
+            logging.error(f"Failed to load folders from database: {e}", exc_info=True)
+            return {}
+
+    def export_to_toml(self) -> bool:
+        """Export folders from DB -> `folders.toml`."""
         try:
-            # Update the toml dict with current folders
-            self.toml["folders"] = self.folders
-            
-            # Write to file
-            with open(self.folders_toml_file, 'w', encoding='utf-8') as file:
-                toml.dump(self.toml, file)
-            
-            logging.info(f"Successfully updated TOML file: {self.folders_toml_file}")
-            return True
-            
+            from img_catalog_tui.db.sync import sync_folders_db_to_toml
+
+            ok = sync_folders_db_to_toml(self.config)
+            if not ok:
+                logging.warning("folders DB->TOML export failed")
+            return ok
         except Exception as e:
-            logging.error(f"Failed to update TOML file {self.folders_toml_file}: {e}")
+            logging.error(f"Failed to export folders to TOML: {e}", exc_info=True)
+            return False
+
+    def import_from_toml(self) -> bool:
+        """Import folders from `folders.toml` -> DB (manual, explicit)."""
+        try:
+            from img_catalog_tui.db.sync import sync_folders_toml_to_db
+
+            ok = sync_folders_toml_to_db(self.config)
+            if ok:
+                self.folders = self._load_from_db()
+            return ok
+        except Exception as e:
+            logging.error(f"Failed to import folders from TOML: {e}", exc_info=True)
             return False
     
-    def _sync_folder_to_db(self, folder_name: str, folder_path: str) -> None:
-        """Sync folder addition/update to the database.
-        
-        This method attempts to sync folder changes to the database.
-        Errors are logged but don't interrupt execution (graceful degradation).
-        
-        Args:
-            folder_name: The folder name (basename)
-            folder_path: The full folder path
-        """
-        try:
-            # Skip sync if no config provided
-            if not self.config:
-                logging.debug("Database sync skipped: no config provided to Folders")
-                return
-            
-            from img_catalog_tui.db.folders import FoldersTable
-            
-            folders_table = FoldersTable(self.config)
-            existing = folders_table.get_by_name(folder_name)
-            
-            if existing:
-                # Update if path changed
-                if existing['path'] != folder_path:
-                    folders_table.update(existing['id'], path=folder_path)
-                    logging.debug(f"Updated folder in database: {folder_name}")
-                else:
-                    logging.debug(f"Folder already up to date in database: {folder_name}")
-            else:
-                # Create new
-                folder_id = folders_table.create(folder_name, folder_path)
-                if folder_id:
-                    logging.debug(f"Created folder in database: {folder_name} (ID: {folder_id})")
-                else:
-                    logging.warning(f"Database sync returned no ID for folder '{folder_name}'")
-                    
-        except ImportError:
-            # Database module not available, skip sync
-            logging.debug("Database sync skipped: db.folders module not available")
-        except Exception as e:
-            # Log error but continue - graceful degradation
-            logging.warning(f"Failed to sync folder '{folder_name}' to database: {e}")
-    
-    def _sync_folder_deletion_to_db(self, folder_name: str) -> None:
-        """Sync folder deletion to the database.
-        
-        This method attempts to delete folder from the database.
-        Errors are logged but don't interrupt execution (graceful degradation).
-        
-        Args:
-            folder_name: The folder name to delete
-        """
-        try:
-            # Skip sync if no config provided
-            if not self.config:
-                logging.debug("Database sync skipped: no config provided to Folders")
-                return
-            
-            from img_catalog_tui.db.folders import FoldersTable
-            
-            folders_table = FoldersTable(self.config)
-            existing = folders_table.get_by_name(folder_name)
-            
-            if existing:
-                success = folders_table.delete(existing['id'])
-                if success:
-                    logging.debug(f"Deleted folder from database: {folder_name}")
-                else:
-                    logging.warning(f"Failed to delete folder from database: {folder_name}")
-            else:
-                logging.debug(f"Folder not found in database (already deleted?): {folder_name}")
-                    
-        except ImportError:
-            # Database module not available, skip sync
-            logging.debug("Database sync skipped: db.folders module not available")
-        except Exception as e:
-            # Log error but continue - graceful degradation
-            logging.warning(f"Failed to delete folder '{folder_name}' from database: {e}")
-    
     def add(self, folder_full_path: str) -> bool:
-        """Add a folder to the collection if it exists and is not already present."""
+        """Add a folder to the collection (DB-first) and export TOML."""
         try:
-            # Get the basename from the full path to use as the key
+            from img_catalog_tui.db.folders import FoldersTable
+
             folder_path = Path(folder_full_path)
             folder_name = folder_path.name
-            
-            # Check if folder is already in the list
-            if folder_name in self.folders:
-                logging.warning(f"Folder '{folder_name}' is already in the list")
-                return False
-            
-            # Check if the folder exists on the filesystem
+
             if not folder_path.exists():
                 logging.error(f"Folder does not exist: {folder_full_path}")
                 return False
-            
             if not folder_path.is_dir():
                 logging.error(f"Path is not a directory: {folder_full_path}")
                 return False
-            
-            # Add folder to the collection using absolute path
+
             absolute_path = str(folder_path.resolve())
-            self.folders[folder_name] = absolute_path
-            
-            if self._update_toml():
-                logging.info(f"Successfully added folder '{folder_name}': {absolute_path}")
-                
-                # Sync to database
-                self._sync_folder_to_db(folder_name, absolute_path)
-                
-                return True
-            else:
-                # Rollback on TOML update failure
-                del self.folders[folder_name]
-                logging.error(f"Failed to update TOML file, rolled back addition of '{folder_name}'")
+
+            folders_table = FoldersTable(self.config)
+            existing = folders_table.get_by_name(folder_name)
+            if existing:
+                logging.warning(f"Folder '{folder_name}' already exists in DB")
                 return False
-                
+
+            folder_id = folders_table.create(folder_name, absolute_path)
+            if not folder_id:
+                logging.error(f"Failed to create folder in DB: {folder_name}")
+                return False
+
+            self.folders = self._load_from_db()
+            self.export_to_toml()
+            logging.info(f"Added folder '{folder_name}' to DB (id={folder_id})")
+            return True
         except Exception as e:
             logging.error(f"Error adding folder '{folder_full_path}': {e}", exc_info=True)
             return False
     
     def delete(self, folder_name: str) -> bool:
-        """Remove a folder from the collection."""
+        """Remove a folder from the collection (DB-first) and export TOML."""
         try:
-            # Check if folder exists in the collection
-            if folder_name not in self.folders:
-                logging.warning(f"Folder '{folder_name}' not found in collection")
+            from img_catalog_tui.db.folders import FoldersTable
+
+            folders_table = FoldersTable(self.config)
+            existing = folders_table.get_by_name(folder_name)
+            if not existing:
+                logging.warning(f"Folder '{folder_name}' not found in DB")
                 return False
-            
-            removed_path = self.folders[folder_name]
-            del self.folders[folder_name]
-            
-            if self._update_toml():
-                logging.info(f"Successfully removed folder '{folder_name}' from collection")
-                
-                # Sync deletion to database
-                self._sync_folder_deletion_to_db(folder_name)
-                
-                return True
-            else:
-                # Rollback on TOML update failure
-                self.folders[folder_name] = removed_path
-                logging.error(f"Failed to update TOML file, rolled back deletion of '{folder_name}'")
+
+            ok = folders_table.delete(existing["id"])
+            if not ok:
+                logging.error(f"Failed to delete folder '{folder_name}' from DB")
                 return False
-                
+
+            self.folders = self._load_from_db()
+            self.export_to_toml()
+            logging.info(f"Deleted folder '{folder_name}' from DB")
+            return True
         except Exception as e:
             logging.error(f"Error deleting folder '{folder_name}': {e}", exc_info=True)
             return False

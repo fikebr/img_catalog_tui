@@ -8,7 +8,109 @@ from img_catalog_tui.utils.file_utils import (
 from img_catalog_tui.config import Config
 from img_catalog_tui.logger import setup_logging
 from img_catalog_tui.core.imageset import Imageset
+from img_catalog_tui.core.folders import Folders
 
+
+def list_imagesets_db(
+    config: Config,
+    folder_path: str,
+    include_archived: bool = False,
+) -> list[dict]:
+    """
+    List imagesets for a folder using the database (DB-first).
+
+    Args:
+        config: App config
+        folder_path: Full filesystem folder path (parent folder)
+        include_archived: Include status=archive rows when True
+
+    Returns:
+        List of imageset rows (dicts). Empty list on errors/not found.
+    """
+    try:
+        from img_catalog_tui.db.utils import init_database
+        from img_catalog_tui.db.folders import FoldersTable
+        from img_catalog_tui.db.imagesets import ImagesetsTable
+
+        init_database(config)
+        folders_table = FoldersTable(config)
+        folder_row = folders_table.get_by_path(folder_path)
+        if not folder_row:
+            folder_name = os.path.basename(folder_path.rstrip("\\/"))
+            folder_row = folders_table.get_by_name(folder_name)
+        if not folder_row:
+            return []
+
+        imagesets_table = ImagesetsTable(config)
+        rows = imagesets_table.get_by_folder_id(folder_row["id"])
+        if include_archived:
+            return rows
+
+        return [row for row in rows if (row.get("status") or "").lower() != "archive"]
+    except Exception as e:
+        logging.error(f"Failed to list imagesets from DB for folder '{folder_path}': {e}", exc_info=True)
+        return []
+
+
+def summarize_imagesets_by_status(imagesets: list[dict]) -> dict[str, int]:
+    """Build a status->count summary for a list of DB imageset rows."""
+    counts: dict[str, int] = {}
+    for row in imagesets:
+        status = (row.get("status") or "").strip() or "unknown"
+        counts[status] = counts.get(status, 0) + 1
+    return counts
+
+
+
+def folder_scan(args: dict, config: Config) -> bool:
+    """
+    TUI command: scan a folder on disk to (a) organize loose files into imagesets,
+    and (b) ensure DB records exist for discovered imagesets.
+
+    Accepts either a folder registry name (DB folders.name) or a full folder path.
+
+    This is an explicit/manual refresh and will:
+    - ensure the folder exists in the DB registry
+    - scan/organize the filesystem using `ImagesetFolder.folder_scan()`
+    - refresh filesystem -> DB file records for each imageset found
+    """
+    folder_input = (args or {}).get("folder_name") or ""
+    folder_input = str(folder_input).strip()
+
+    if not folder_input:
+        logging.error("folder_scan missing required arg: folder_name")
+        return False
+
+    try:
+        folders = Folders(config=config)
+        if folder_input in folders.folders:
+            folder_path = folders.folders[folder_input]
+        else:
+            folder_path = folder_input
+            # If the user typed a full path, ensure it's registered in DB.
+            folders.add(folder_path)
+            folders.export_to_toml()
+
+        if not folder_path or not os.path.isdir(folder_path):
+            logging.error("folder_scan folder does not exist or is not a directory: %s", folder_path)
+            return False
+
+        logging.info("Starting folder_scan for: %s", folder_path)
+        folder_obj = ImagesetFolder(config=config, foldername=folder_path)
+
+        refreshed = 0
+        for imageset_name, imageset_obj in folder_obj.imagesets.items():
+            try:
+                if imageset_obj.refresh_files_from_fs():
+                    refreshed += 1
+            except Exception as e:
+                logging.warning("Failed to refresh files for imageset '%s': %s", imageset_name, e)
+
+        logging.info("folder_scan complete: imagesets=%s refreshed=%s", len(folder_obj.imagesets), refreshed)
+        return True
+    except Exception as e:
+        logging.error(f"folder_scan failed: {e}", exc_info=True)
+        return False
 
 
 class ImagesetFolder:
