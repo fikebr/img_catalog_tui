@@ -5,8 +5,7 @@ from flask import jsonify, request
 from img_catalog_tui.config import Config
 
 from img_catalog_tui.core.folders import Folders
-from img_catalog_tui.core.folder import ImagesetFolder
-from img_catalog_tui.core.imageset import Imageset
+from img_catalog_tui.core.folder import list_imagesets_db
 from img_catalog_tui.core.imageset_batch_update import ImagesetBatch
 
 config = Config()
@@ -48,6 +47,7 @@ def interview():
             return jsonify({"error": f"Imageset '{imagesetname}' not found in folder '{folderpath}'"}), 404
         
         # Get an imageset object
+        from img_catalog_tui.core.imageset import Imageset
         imageset_obj = Imageset(config=config, folder_name=folderpath, imageset_name=imagesetname)
         
         # Get the full path to the cover image for the imageset
@@ -99,11 +99,12 @@ def folder(foldername: str):
     try:
         folders_obj = Folders(config=config)
         folder_path = folders_obj.folders[foldername]
-        # create a folder object for the foldername
-        folder_obj = ImagesetFolder(config=config, foldername=folder_path)
-        
-        # return a jsonify folder.to_dict()
-        return jsonify(folder_obj.to_dict())
+        imagesets_rows = list_imagesets_db(config, folder_path, include_archived=False)
+        return jsonify({
+            "foldername": folder_path,
+            "imagesets": [row.get("name") for row in imagesets_rows if row.get("name")],
+            "imageset_count": len(imagesets_rows),
+        })
         
     except FileNotFoundError as e:
         logging.error(f"Folder not found: {e}")
@@ -116,11 +117,9 @@ def review_new(foldername: str):
     try:
         folders_obj = Folders(config=config)
         folder_path = folders_obj.folders[foldername]
-        # create a folder object for the foldername
-        folder_obj = ImagesetFolder(config=config, foldername=folder_path)
-        
-        # return a jsonify folder.to_dict()
-        return jsonify(folder_obj.review_new())
+        imagesets_rows = list_imagesets_db(config, folder_path, include_archived=False)
+        new_imagesets = [row.get("name") for row in imagesets_rows if (row.get("status") or "").lower() == "new"]
+        return jsonify({"foldername": foldername, "count": len(new_imagesets), "imagesets": new_imagesets})
         
     except FileNotFoundError as e:
         logging.error(f"Folder not found: {e}")
@@ -133,18 +132,53 @@ def review_new(foldername: str):
 def imageset(foldername: str, imageset: str):
     """Return imageset information as JSON."""
     try:
-        # Get full folder path from registry
         folders_obj = Folders(config=config)
         if foldername not in folders_obj.folders:
             logging.warning(f"Folder '{foldername}' not found in registry")
             return jsonify({"error": f"Folder '{foldername}' not found"}), 404
-        
+
         folder_path = folders_obj.folders[foldername]
-        
-        # Create imageset object directly with full folder path
-        imageset_obj = Imageset(config=config, folder_name=folder_path, imageset_name=imageset)
-        
-        return jsonify(imageset_obj.to_dict())
+        expected_imageset_folder = os.path.join(folder_path, imageset)
+
+        from img_catalog_tui.db.imagesets import ImagesetsTable
+        from img_catalog_tui.db.imagesetfiles import ImagesetFilesTable
+        from img_catalog_tui.db.utils import get_connection
+
+        imagesets_table = ImagesetsTable(config)
+        row = imagesets_table.get_by_folder_path_and_name(folder_path, imageset)
+        if not row:
+            # Fallback: by imageset_folder_path (handles moved/archived)
+            with get_connection(config) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT * FROM imagesets WHERE name = ? AND imageset_folder_path = ?",
+                    (imageset, expected_imageset_folder),
+                )
+                found = cursor.fetchone()
+                row = dict(found) if found else None
+
+        if not row:
+            return jsonify({"error": f"Imageset '{imageset}' not found"}), 404
+
+        files_table = ImagesetFilesTable(config)
+        files_dict = files_table.get_files_dict(row["id"])
+        cover = (row.get("cover_image_path") or "").replace("\\", "/")
+
+        payload = {
+            "imageset_name": row.get("name") or imageset,
+            "imageset_folder": row.get("imageset_folder_path") or expected_imageset_folder,
+            "status": row.get("status") or "",
+            "edits": row.get("edits") or "",
+            "needs": row.get("needs") or "",
+            "posted_to": row.get("posted_to") or "",
+            "good_for": row.get("good_for") or "",
+            "prompt": row.get("prompt") or "",
+            "source": row.get("source") or "",
+            "files": files_dict,
+            "cover_image": cover,
+        }
+
+        return jsonify(payload)
         
     except FileNotFoundError as e:
         logging.error(f"File not found: {e}")
@@ -314,24 +348,45 @@ def imageset_update(foldername: str, imageset: str):
             logging.warning(f"Imageset '{imageset}' not found in folder '{foldername}'")
             return jsonify({"error": f"Imageset '{imageset}' not found in folder '{foldername}'"}), 404
         
-        # Create a fresh Imageset object to ensure we work with latest TOML data
-        imageset_obj = Imageset(config=config, folder_name=folder_path, imageset_name=imageset)
+        from img_catalog_tui.db.imagesets import ImagesetsTable
+        from img_catalog_tui.db.sync import export_imageset_to_toml
+
+        imagesets_table = ImagesetsTable(config)
+        row = imagesets_table.get_by_folder_path_and_name(folder_path, imageset)
+        if not row:
+            return jsonify({"error": f"Imageset '{imageset}' not found in database"}), 404
+
+        imageset_id = row["id"]
         
         # Track which fields were updated
         updated_fields = []
+
+        def _validate_csv(value: str, valid_options: list[str], field_name: str) -> None:
+            if not value:
+                return
+            values = [item.strip() for item in value.split(",") if item.strip()]
+            for val in values:
+                if val not in valid_options:
+                    raise ValueError(f"Invalid {field_name} value '{val}'. Valid options are: {', '.join(valid_options)}")
         
         # Update each field if provided (skip empty values to preserve existing data)
         if 'status' in data and data['status'].strip():
             try:
-                imageset_obj.status = data['status']
+                new_status = data['status'].strip()
+                valid_status = config.config_data.get("status", [])
+                if new_status not in valid_status:
+                    raise ValueError(f"Invalid status value '{new_status}'")
+                imagesets_table.update(imageset_id, status=new_status)
                 updated_fields.append('status')
-                logging.info(f"Updated status for {imageset}: {data['status']}")
+                logging.info(f"Updated status for {imageset}: {new_status}")
             except ValueError as e:
                 return jsonify({"error": f"Invalid status value: {str(e)}"}), 400
         
         if 'edits' in data:
             try:
-                imageset_obj.edits = data['edits']
+                valid_edits = config.config_data.get("edits", [])
+                _validate_csv(data['edits'], valid_edits, "edits")
+                imagesets_table.update(imageset_id, edits=data['edits'])
                 updated_fields.append('edits')
                 logging.info(f"Updated edits for {imageset}: {data['edits']}")
             except ValueError as e:
@@ -339,7 +394,9 @@ def imageset_update(foldername: str, imageset: str):
         
         if 'needs' in data:
             try:
-                imageset_obj.needs = data['needs']
+                valid_needs = config.config_data.get("needs", [])
+                _validate_csv(data['needs'], valid_needs, "needs")
+                imagesets_table.update(imageset_id, needs=data['needs'])
                 updated_fields.append('needs')
                 logging.info(f"Updated needs for {imageset}: {data['needs']}")
             except ValueError as e:
@@ -347,7 +404,9 @@ def imageset_update(foldername: str, imageset: str):
         
         if 'good_for' in data:
             try:
-                imageset_obj.good_for = data['good_for']
+                valid_good_for = config.config_data.get("good_for", [])
+                _validate_csv(data['good_for'], valid_good_for, "good_for")
+                imagesets_table.update(imageset_id, good_for=data['good_for'])
                 updated_fields.append('good_for')
                 logging.info(f"Updated good_for for {imageset}: {data['good_for']}")
             except ValueError as e:
@@ -355,11 +414,17 @@ def imageset_update(foldername: str, imageset: str):
         
         if 'posted_to' in data:
             try:
-                imageset_obj.posted_to = data['posted_to']
+                valid_posted_to = config.config_data.get("posted_to", [])
+                _validate_csv(data['posted_to'], valid_posted_to, "posted_to")
+                imagesets_table.update(imageset_id, posted_to=data['posted_to'])
                 updated_fields.append('posted_to')
                 logging.info(f"Updated posted_to for {imageset}: {data['posted_to']}")
             except ValueError as e:
                 return jsonify({"error": f"Invalid posted_to value: {str(e)}"}), 400
+
+        # Export derived TOML after DB writes
+        if updated_fields:
+            export_imageset_to_toml(config, imageset_id)
         
         # Return success response
         response_data = {
@@ -600,6 +665,7 @@ def imageset_move(foldername: str, imageset: str):
         target_folder_path = folders_obj.folders[target_foldername]
         
         # Create imageset object
+        from img_catalog_tui.core.imageset import Imageset
         imageset_obj = Imageset(config=config, folder_name=source_folder_path, imageset_name=imageset)
         
         # Move the imageset
@@ -672,6 +738,7 @@ def move_imagesets(foldername: str):
         target_folder_path = folders_obj.folders[target_foldername]
         
         # Create folder object to get imagesets
+        from img_catalog_tui.core.folder import ImagesetFolder
         folder_obj = ImagesetFolder(config=config, foldername=source_folder_path)
         
         # Determine which imagesets to move based on the mode
@@ -789,41 +856,31 @@ def search_imagesets():
             return jsonify({"error": "Method not allowed"}), 405
         
         data = request.get_json() or {}
-        
-        # Build query from request data
-        query = {}
-        
-        if 'status' in data:
-            query['status'] = data['status']
-        
-        if 'good_for' in data:
-            query['good_for'] = data['good_for']
-        
-        if 'posted_to' in data:
-            posted_to = data['posted_to']
-            if isinstance(posted_to, dict) and 'operator' in posted_to:
-                query['posted_to'] = {
-                    'operator': posted_to.get('operator', '='),
-                    'value': posted_to.get('value', '')
-                }
-            else:
-                query['posted_to'] = posted_to
-        
-        if 'prompt_contains' in data:
-            query['prompt_contains'] = data['prompt_contains']
-        
-        if 'folder' in data:
-            query['folder'] = data['folder']
-        
-        # TODO: Implement search using database tables directly
-        # The search functionality needs to be reimplemented using ImagesetsTable
-        # For now, return empty results
-        logging.warning("Search functionality not yet implemented with new database structure")
-        
+        from img_catalog_tui.core.search import SearchService
+
+        service = SearchService(config)
+
+        # Minimal DB-backed search routing
+        if data.get("prompt_contains"):
+            results = service.search_by_prompt(str(data.get("prompt_contains")))
+        elif data.get("folder"):
+            results = service.search_by_folder(str(data.get("folder")))
+        elif data.get("status") and data.get("needs_contains") is not None:
+            results = service.search_status_and_needs(str(data.get("status")), str(data.get("needs_contains")))
+        elif data.get("status") and data.get("good_for") and data.get("posted_to_excludes"):
+            results = service.search_status_good_for_posted_to(
+                str(data.get("status")),
+                str(data.get("good_for")),
+                str(data.get("posted_to_excludes")),
+            )
+        elif data.get("imageset_name_contains"):
+            results = service.search_imageset_name(str(data.get("imageset_name_contains")))
+        else:
+            results = []
+
         return jsonify({
-            'results': [],
-            'count': 0,
-            'message': 'Search functionality being updated for new database structure'
+            "results": results,
+            "count": len(results),
         }), 200
         
     except Exception as e:

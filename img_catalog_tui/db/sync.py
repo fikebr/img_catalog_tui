@@ -124,40 +124,40 @@ def sync_imageset_toml_to_db(config: Config, folder_path: str, imageset_name: st
         if not os.path.exists(imageset_folder):
             logging.warning(f"Imageset folder does not exist: {imageset_folder}")
             return None
-        
-        # Create Imageset object to access properties
-        from img_catalog_tui.core.imageset import Imageset
-        imageset = Imageset(config=config, folder_name=folder_path, imageset_name=imageset_name)
-        
-        # Get folder ID
+
+        # Parse TOML directly (manual import)
+        toml_obj = ImagesetToml(imageset_folder=imageset_folder)
+        status = toml_obj.get(key="status") or None
+        edits = toml_obj.get(key="edits") or None
+        needs = toml_obj.get(key="needs") or None
+        good_for = toml_obj.get(key="good_for") or None
+        posted_to = toml_obj.get(section="biz", key="posted_to") or None
+        source = toml_obj.get(key="source") or None
+
+        prompt = None
+        if source:
+            prompt_value = toml_obj.get(section=source, key="prompt")
+            prompt = prompt_value or None
+
+        toml_data = toml_obj.get()
+
+        # Get folder ID (create folder row if missing)
         folders_table = FoldersTable(config)
-        folder_name = os.path.basename(folder_path)
-        folder_record = folders_table.get_by_name(folder_name)
-        
+        folder_name = os.path.basename(folder_path.rstrip("\\/"))
+        folder_record = folders_table.get_by_path(folder_path) or folders_table.get_by_name(folder_name)
         if not folder_record:
-            # Try to find by path
-            folder_record = folders_table.get_by_path(folder_path)
-            if not folder_record:
-                logging.error(f"Folder not found in database: {folder_path}")
-                return None
-        
-        folder_id = folder_record['id']
-        
+            folder_id = folders_table.create(folder_name, folder_path)
+            folder_record = folders_table.get_by_id(folder_id) if folder_id else None
+        if not folder_record:
+            logging.error(f"Folder could not be created/found in database: {folder_path}")
+            return None
+
+        folder_id = folder_record["id"]
+
         # Create or update imageset
         imagesets_table = ImagesetsTable(config)
         existing = imagesets_table.get_by_folder_path_and_name(folder_path, imageset_name)
-        
-        # Use Imageset properties instead of manually parsing TOML
-        status = imageset.status
-        edits = imageset.edits
-        needs = imageset.needs
-        source = imageset.toml.get(key="source")
-        prompt = imageset.prompt
-        good_for = imageset.good_for
-        posted_to = imageset.posted_to
-        
-        # Calculate paths
-        imageset_folder_path = os.path.join(folder_path, imageset_name)
+        imageset_folder_path = imageset_folder
         
         if existing:
             # Update existing
@@ -195,15 +195,14 @@ def sync_imageset_toml_to_db(config: Config, folder_path: str, imageset_name: st
         sections_table = ImagesetSectionsTable(config)
         
         # Sync all sections except top-level fields
-        top_level_keys = {"imageset", "status", "edits", "needs", "source"}
-        toml_data = imageset.toml.get()
-        
-        for section_name, section_data in toml_data.items():
-            if section_name in top_level_keys:
-                continue
-            
-            if isinstance(section_data, dict):
-                sections_table.update(imageset_id, section_name, section_data)
+        top_level_keys = {"imageset", "status", "edits", "needs", "source", "good_for"}
+
+        if isinstance(toml_data, dict):
+            for section_name, section_data in toml_data.items():
+                if section_name in top_level_keys:
+                    continue
+                if isinstance(section_data, dict):
+                    sections_table.update(imageset_id, section_name, section_data)
         
         # Sync files
         files_table = ImagesetFilesTable(config)
@@ -293,11 +292,27 @@ def sync_imageset_db_to_toml(config: Config, folder_path: str, imageset_name: st
         bool: True if successful, False otherwise
     """
     try:
-        imageset_folder = os.path.join(folder_path, imageset_name)
-        
+        expected_folder = os.path.join(folder_path, imageset_name)
+
         # Get imageset from database
         imagesets_table = ImagesetsTable(config)
         imageset = imagesets_table.get_by_folder_path_and_name(folder_path, imageset_name)
+
+        # Fallback: try by imageset_folder_path (supports archived/moved layouts)
+        if not imageset:
+            try:
+                from img_catalog_tui.db.utils import get_connection
+
+                with get_connection(config) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        "SELECT * FROM imagesets WHERE name = ? AND imageset_folder_path = ?",
+                        (imageset_name, expected_folder),
+                    )
+                    row = cursor.fetchone()
+                    imageset = dict(row) if row else None
+            except Exception:
+                imageset = None
         
         if not imageset:
             logging.warning(f"Imageset not found in database: {imageset_name}")
@@ -309,7 +324,8 @@ def sync_imageset_db_to_toml(config: Config, folder_path: str, imageset_name: st
         sections_table = ImagesetSectionsTable(config)
         sections = sections_table.get_by_imageset_id(imageset_id)
         
-        # Create TOML object
+        # Create TOML object at the real filesystem location
+        imageset_folder = imageset.get("imageset_folder_path") or expected_folder
         toml_obj = ImagesetToml(imageset_folder=imageset_folder)
         
         # Update top-level fields
@@ -340,6 +356,72 @@ def sync_imageset_db_to_toml(config: Config, folder_path: str, imageset_name: st
     except Exception as e:
         logging.error(f"Failed to sync imageset {imageset_name} from DB to TOML: {e}", exc_info=True)
         return False
+
+
+def export_imageset_to_toml(config: Config, imageset_id: int) -> bool:
+    """Export a single imageset from DB -> TOML by imageset_id."""
+    try:
+        imagesets_table = ImagesetsTable(config)
+        row = imagesets_table.get_by_id(imageset_id)
+        if not row:
+            logging.warning(f"Imageset not found in DB by id: {imageset_id}")
+            return False
+
+        imageset_folder_path = row.get("imageset_folder_path") or ""
+        folder_path = os.path.dirname(imageset_folder_path.rstrip("\\/")) if imageset_folder_path else row.get("folder_path") or ""
+        name = row.get("name") or ""
+        if not folder_path or not name:
+            logging.warning(f"Imageset row missing required fields for export: id={imageset_id}")
+            return False
+
+        return sync_imageset_db_to_toml(config, folder_path, name)
+    except Exception as e:
+        logging.error(f"Failed to export imageset id {imageset_id} to TOML: {e}", exc_info=True)
+        return False
+
+
+def import_imageset_from_toml(config: Config, imageset_folder_path: str) -> Optional[int]:
+    """Import a single imageset from TOML -> DB by imageset folder path."""
+    try:
+        if not imageset_folder_path:
+            return None
+        folder_path = os.path.dirname(imageset_folder_path.rstrip("\\/"))
+        imageset_name = os.path.basename(imageset_folder_path.rstrip("\\/"))
+        if not folder_path or not imageset_name:
+            return None
+        return sync_imageset_toml_to_db(config, folder_path, imageset_name)
+    except Exception as e:
+        logging.error(f"Failed to import imageset from TOML at '{imageset_folder_path}': {e}", exc_info=True)
+        return None
+
+
+def export_all_imagesets_db_to_toml(config: Config, folder_path: str | None = None) -> int:
+    """Export imagesets from DB -> TOML. If folder_path is provided, limits to that folder."""
+    try:
+        imagesets_table = ImagesetsTable(config)
+        folders_table = FoldersTable(config)
+
+        if folder_path:
+            folder_row = folders_table.get_by_path(folder_path) or folders_table.get_by_name(os.path.basename(folder_path.rstrip("\\/")))
+            if not folder_row:
+                return 0
+            rows = imagesets_table.get_by_folder_id(folder_row["id"])
+        else:
+            from img_catalog_tui.db.utils import get_connection
+            with get_connection(config) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM imagesets")
+                rows = [dict(r) for r in cursor.fetchall()]
+
+        count = 0
+        for row in rows:
+            imageset_id = row.get("id")
+            if isinstance(imageset_id, int) and export_imageset_to_toml(config, imageset_id):
+                count += 1
+        return count
+    except Exception as e:
+        logging.error(f"Failed to export all imagesets to TOML: {e}", exc_info=True)
+        return 0
 
 
 def sync_all_imagesets_toml_to_db(config: Config, folder_path: Optional[str] = None) -> int:
@@ -543,9 +625,14 @@ if __name__ == "__main__":
     Entry point for running database synchronization as a module.
     
     Usage:
-        uv run -m img_catalog_tui.db.sync
+        uv run -m img_catalog_tui.db.sync import-toml
+        uv run -m img_catalog_tui.db.sync export-toml
+        uv run -m img_catalog_tui.db.sync export-imageset --id 123
+        uv run -m img_catalog_tui.db.sync import-imageset --path /full/path/to/imageset_folder
+        uv run -m img_catalog_tui.db.sync init-db
     """
     import sys
+    import argparse
     
     # Set up logging
     from img_catalog_tui.logger import setup_logging
@@ -554,30 +641,72 @@ if __name__ == "__main__":
     # Load configuration
     from img_catalog_tui.config import Config
     
+    parser = argparse.ArgumentParser(prog="img_catalog_tui.db.sync")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    sub.add_parser("init-db", help="Initialize DB schema")
+
+    p_import = sub.add_parser("import-toml", help="Import folders + imagesets from TOML/filesystem into DB")
+    p_import.add_argument("--folder-path", type=str, default=None, help="Limit imageset import to a single folder path")
+
+    p_export = sub.add_parser("export-toml", help="Export folders + imagesets from DB into TOML files")
+    p_export.add_argument("--folder-path", type=str, default=None, help="Limit export to a single folder path")
+
+    p_export_one = sub.add_parser("export-imageset", help="Export one imageset from DB into TOML")
+    p_export_one.add_argument("--id", type=int, required=True, help="imagesets.id")
+
+    p_import_one = sub.add_parser("import-imageset", help="Import one imageset folder TOML into DB")
+    p_import_one.add_argument("--path", type=str, required=True, help="Full path to an imageset folder")
+
+    args = parser.parse_args()
+
     try:
-        logging.info("Starting database synchronization from TOML...")
         config = Config()
-        
-        # Sync folders first
-        logging.info("Syncing folders from TOML to database...")
-        if sync_folders_toml_to_db(config):
-            print("✓ Folders synced successfully")
-        else:
-            print("✗ Failed to sync folders")
-            sys.exit(1)
-        
-        # Sync all imagesets
-        logging.info("Syncing imagesets from TOML to database...")
-        count = sync_all_imagesets_toml_to_db(config)
-        
-        if count >= 0:
-            print(f"✓ Synced {count} imagesets successfully")
-            logging.info(f"Database synchronization completed. Synced {count} imagesets.")
+
+        if args.command == "init-db":
+            from img_catalog_tui.db.utils import init_database
+            ok = init_database(config)
+            print("✓ Database initialized" if ok else "✗ Failed to initialize database")
+            sys.exit(0 if ok else 1)
+
+        if args.command == "import-toml":
+            logging.info("Importing folders TOML -> DB ...")
+            ok = sync_folders_toml_to_db(config)
+            if not ok:
+                print("✗ Failed to import folders")
+                sys.exit(1)
+            logging.info("Importing imagesets TOML -> DB ...")
+            count = sync_all_imagesets_toml_to_db(config, folder_path=args.folder_path)
+            print(f"✓ Imported {count} imagesets")
             sys.exit(0)
-        else:
-            print("✗ Failed to sync imagesets")
+
+        if args.command == "export-toml":
+            logging.info("Exporting folders DB -> TOML ...")
+            ok = sync_folders_db_to_toml(config)
+            if not ok:
+                print("✗ Failed to export folders")
+                sys.exit(1)
+            logging.info("Exporting imagesets DB -> TOML ...")
+            count = export_all_imagesets_db_to_toml(config, folder_path=args.folder_path)
+            print(f"✓ Exported {count} imagesets")
+            sys.exit(0)
+
+        if args.command == "export-imageset":
+            ok = export_imageset_to_toml(config, args.id)
+            print("✓ Exported imageset" if ok else "✗ Failed to export imageset")
+            sys.exit(0 if ok else 1)
+
+        if args.command == "import-imageset":
+            imageset_id = import_imageset_from_toml(config, args.path)
+            if imageset_id:
+                print(f"✓ Imported imageset (id={imageset_id})")
+                sys.exit(0)
+            print("✗ Failed to import imageset")
             sys.exit(1)
-            
+
+        print("✗ Unknown command")
+        sys.exit(2)
+
     except FileNotFoundError as e:
         logging.error(f"Configuration file not found: {e}", exc_info=True)
         print(f"✗ Configuration file not found: {e}")
